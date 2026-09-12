@@ -15,6 +15,24 @@ services:
     networks:
       - flowstock
 
+  queue-worker:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: flowstock-queue-worker
+    command: php artisan queue:work redis --queue=default --tries=3 --backoff=10 --max-time=3600 --sleep=3
+    volumes:
+      - .:/var/www/html
+    working_dir: /var/www/html
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - flowstock
+
   nginx:
     image: nginx:stable-alpine
     container_name: flowstock-nginx

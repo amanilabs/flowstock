@@ -5,6 +5,11 @@ namespace App\Services;
 use App\Enums\OrderStatus;
 use App\Enums\ReservationStatus;
 use App\Enums\StockMovementType;
+use App\Events\OrderCancelled;
+use App\Events\OrderConfirmed;
+use App\Events\OrderDelivered;
+use App\Events\OrderRefunded;
+use App\Events\OrderShipped;
 use App\Exceptions\InsufficientStockException;
 use App\Exceptions\InvalidOrderTransitionException;
 use App\Models\Customer;
@@ -114,8 +119,11 @@ class OrderService
             }
 
             $order->update(['status' => OrderStatus::Confirmed, 'confirmed_at' => now()]);
+            $order = $order->fresh(['items.reservation', 'items.product', 'customer']);
 
-            return $order->fresh('items.reservation');
+            event(new OrderConfirmed($order, $order->tenant_id));
+
+            return $order;
         });
     }
 
@@ -164,8 +172,11 @@ class OrderService
             }
 
             $order->update(['status' => OrderStatus::Shipped, 'shipped_at' => now()]);
+            $order = $order->fresh(['items.reservation', 'items.product', 'customer']);
 
-            return $order->fresh('items.reservation');
+            event(new OrderShipped($order, $order->tenant_id));
+
+            return $order;
         });
     }
 
@@ -179,6 +190,8 @@ class OrderService
             $this->assertTransition($order, OrderStatus::Delivered);
 
             $order->update(['status' => OrderStatus::Delivered, 'delivered_at' => now()]);
+
+            event(new OrderDelivered($order, $order->tenant_id));
 
             return $order;
         });
@@ -207,8 +220,11 @@ class OrderService
                 'cancelled_at' => now(),
                 'notes' => $reason ? trim(($order->notes ?? '')."\nCancelled: {$reason}") : $order->notes,
             ]);
+            $order = $order->fresh(['items.reservation', 'items.product', 'customer']);
 
-            return $order->fresh('items.reservation');
+            event(new OrderCancelled($order, $order->tenant_id));
+
+            return $order;
         });
     }
 
@@ -226,6 +242,8 @@ class OrderService
                 'refunded_at' => now(),
                 'notes' => $reason ? trim(($order->notes ?? '')."\nRefunded: {$reason}") : $order->notes,
             ]);
+
+            event(new OrderRefunded($order, $order->tenant_id));
 
             return $order;
         });

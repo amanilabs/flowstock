@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\StockMovementType;
+use App\Events\LowStockDetected;
 use App\Exceptions\InsufficientStockException;
 use App\Models\Product;
 use App\Models\ProductStock;
@@ -36,7 +37,8 @@ class StockService
         return DB::transaction(function () use ($product, $warehouse, $quantityChange, $type, $note, $reference, $userId) {
             $stock = $this->lockStockRow($product, $warehouse);
 
-            $newQuantity = $stock->quantity + $quantityChange;
+            $oldQuantity = $stock->quantity;
+            $newQuantity = $oldQuantity + $quantityChange;
 
             if ($newQuantity < 0) {
                 throw new InsufficientStockException(
@@ -47,7 +49,7 @@ class StockService
 
             $stock->update(['quantity' => $newQuantity]);
 
-            return StockMovement::create([
+            $movement = StockMovement::create([
                 'tenant_id' => $product->tenant_id,
                 'product_id' => $product->id,
                 'warehouse_id' => $warehouse->id,
@@ -58,6 +60,14 @@ class StockService
                 'reference_type' => $reference?->getMorphClass(),
                 'reference_id' => $reference?->getKey(),
             ]);
+
+            // Only fire on the actual crossing — not on every movement while
+            // already below the threshold, and never on a restock.
+            if ($oldQuantity > $product->reorder_point && $newQuantity <= $product->reorder_point) {
+                event(new LowStockDetected($product, $warehouse, $product->tenant_id, $oldQuantity, $newQuantity));
+            }
+
+            return $movement;
         });
     }
 
