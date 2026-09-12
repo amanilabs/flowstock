@@ -39,6 +39,7 @@ services:
       - "5432:5432"
     volumes:
       - flowstock-postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U flowstock -d flowstock"]
       interval: 5s
