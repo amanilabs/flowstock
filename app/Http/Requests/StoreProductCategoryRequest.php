@@ -18,11 +18,11 @@ class StoreProductCategoryRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'slug' => [
                 'required', 'string', 'max:255',
-                Rule::unique('product_categories', 'slug')->where('tenant_id', $this->user()->tenant_id),
+                Rule::unique('product_categories', 'slug')->where('tenant_id', $this->user()?->tenant_id),
             ],
             'parent_id' => [
                 'nullable',
-                Rule::exists('product_categories', 'id')->where('tenant_id', $this->user()->tenant_id),
+                Rule::exists('product_categories', 'id')->where('tenant_id', $this->user()?->tenant_id),
             ],
         ];
     }

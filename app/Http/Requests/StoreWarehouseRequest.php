@@ -18,7 +18,7 @@ class StoreWarehouseRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'code' => [
                 'required', 'string', 'max:50',
-                Rule::unique('warehouses', 'code')->where('tenant_id', $this->user()->tenant_id),
+                Rule::unique('warehouses', 'code')->where('tenant_id', $this->user()?->tenant_id),
             ],
             'address_line1' => ['required', 'string', 'max:255'],
             'address_line2' => ['nullable', 'string', 'max:255'],

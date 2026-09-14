@@ -4,7 +4,11 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Spatie\Activitylog\Models\Activity;
 
+/**
+ * @mixin Activity
+ */
 class AuditLogResource extends JsonResource
 {
     public function toArray(Request $request): array

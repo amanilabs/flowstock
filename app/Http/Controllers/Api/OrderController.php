@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Warehouse;
 use App\Services\OrderService;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
@@ -53,30 +54,35 @@ class OrderController extends Controller
     }
 
     /** Requires the manage-orders permission. */
+    #[Response(status: 409, description: 'Invalid order status transition for the order\'s current state.', type: 'array{message: string}')]
     public function confirm(Order $order)
     {
         return new OrderResource($this->orderService->confirmOrder($order)->load('items.reservation'));
     }
 
     /** Requires the manage-orders permission. */
+    #[Response(status: 409, description: 'Invalid order status transition for the order\'s current state.', type: 'array{message: string}')]
     public function process(Order $order)
     {
         return new OrderResource($this->orderService->markProcessing($order));
     }
 
     /** Requires the manage-orders permission. */
+    #[Response(status: 409, description: 'Invalid order status transition for the order\'s current state.', type: 'array{message: string}')]
     public function ship(Request $request, Order $order)
     {
         return new OrderResource($this->orderService->shipOrder($order, $request->user()->id)->load('items.reservation'));
     }
 
     /** Requires the manage-orders permission. */
+    #[Response(status: 409, description: 'Invalid order status transition for the order\'s current state.', type: 'array{message: string}')]
     public function deliver(Order $order)
     {
         return new OrderResource($this->orderService->markDelivered($order));
     }
 
     /** Requires the cancel-orders permission. */
+    #[Response(status: 409, description: 'Invalid order status transition for the order\'s current state.', type: 'array{message: string}')]
     public function cancel(CancelOrderRequest $request, Order $order)
     {
         return new OrderResource(
@@ -85,6 +91,7 @@ class OrderController extends Controller
     }
 
     /** Requires the refund-orders permission. */
+    #[Response(status: 409, description: 'Invalid order status transition for the order\'s current state.', type: 'array{message: string}')]
     public function refund(RefundOrderRequest $request, Order $order)
     {
         return new OrderResource($this->orderService->refundOrder($order, $request->validated('reason')));

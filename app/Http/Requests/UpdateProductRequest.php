@@ -17,12 +17,12 @@ class UpdateProductRequest extends FormRequest
         return [
             'category_id' => [
                 'nullable',
-                Rule::exists('product_categories', 'id')->where('tenant_id', $this->user()->tenant_id),
+                Rule::exists('product_categories', 'id')->where('tenant_id', $this->user()?->tenant_id),
             ],
             'sku' => [
                 'sometimes', 'required', 'string', 'max:100',
                 Rule::unique('products', 'sku')
-                    ->where('tenant_id', $this->user()->tenant_id)
+                    ->where('tenant_id', $this->user()?->tenant_id)
                     ->ignore($this->route('product')),
             ],
             'name' => ['sometimes', 'required', 'string', 'max:255'],

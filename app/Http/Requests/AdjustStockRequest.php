@@ -19,7 +19,7 @@ class AdjustStockRequest extends FormRequest
         return [
             'warehouse_id' => [
                 'required', 'integer',
-                Rule::exists('warehouses', 'id')->where('tenant_id', $this->user()->tenant_id),
+                Rule::exists('warehouses', 'id')->where('tenant_id', $this->user()?->tenant_id),
             ],
             'quantity_change' => ['required', 'integer', 'not_in:0'],
             'type' => ['required', new Enum(StockMovementType::class)],

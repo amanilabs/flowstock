@@ -19,12 +19,12 @@ class UpdateProductCategoryRequest extends FormRequest
             'slug' => [
                 'sometimes', 'required', 'string', 'max:255',
                 Rule::unique('product_categories', 'slug')
-                    ->where('tenant_id', $this->user()->tenant_id)
+                    ->where('tenant_id', $this->user()?->tenant_id)
                     ->ignore($this->route('product_category')),
             ],
             'parent_id' => [
                 'nullable',
-                Rule::exists('product_categories', 'id')->where('tenant_id', $this->user()->tenant_id),
+                Rule::exists('product_categories', 'id')->where('tenant_id', $this->user()?->tenant_id),
             ],
         ];
     }

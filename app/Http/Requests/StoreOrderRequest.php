@@ -18,17 +18,17 @@ class StoreOrderRequest extends FormRequest
             'customer_id' => [
                 'required', 'integer',
                 Rule::exists('customers', 'id')
-                    ->where('tenant_id', $this->user()->tenant_id)
+                    ->where('tenant_id', $this->user()?->tenant_id)
                     ->whereNull('deleted_at'),
             ],
             'warehouse_id' => [
                 'required', 'integer',
-                Rule::exists('warehouses', 'id')->where('tenant_id', $this->user()->tenant_id),
+                Rule::exists('warehouses', 'id')->where('tenant_id', $this->user()?->tenant_id),
             ],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => [
                 'required', 'integer',
-                Rule::exists('products', 'id')->where('tenant_id', $this->user()->tenant_id),
+                Rule::exists('products', 'id')->where('tenant_id', $this->user()?->tenant_id),
             ],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'items.*.unit_price' => ['nullable', 'numeric', 'min:0'],

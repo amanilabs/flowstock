@@ -7,12 +7,15 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class OrderResource extends JsonResource
 {
+    // 'status' below intentionally keeps the enum instance rather than ->value: identical
+    // JSON output (BackedEnum is JsonSerializable), but lets Scramble infer the real
+    // OrderStatus type for the OpenAPI docs instead of a bare string.
     public function toArray(Request $request): array
     {
         return [
             'id' => $this->id,
             'order_number' => $this->order_number,
-            'status' => $this->status->value,
+            'status' => $this->status,
             'customer' => new CustomerResource($this->whenLoaded('customer')),
             'warehouse' => new WarehouseResource($this->whenLoaded('warehouse')),
             'items' => OrderItemResource::collection($this->whenLoaded('items')),

@@ -19,7 +19,7 @@ class UpdateWarehouseRequest extends FormRequest
             'code' => [
                 'sometimes', 'required', 'string', 'max:50',
                 Rule::unique('warehouses', 'code')
-                    ->where('tenant_id', $this->user()->tenant_id)
+                    ->where('tenant_id', $this->user()?->tenant_id)
                     ->ignore($this->route('warehouse')),
             ],
             'address_line1' => ['sometimes', 'required', 'string', 'max:255'],

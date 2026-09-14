@@ -17,11 +17,11 @@ class StoreProductRequest extends FormRequest
         return [
             'category_id' => [
                 'nullable',
-                Rule::exists('product_categories', 'id')->where('tenant_id', $this->user()->tenant_id),
+                Rule::exists('product_categories', 'id')->where('tenant_id', $this->user()?->tenant_id),
             ],
             'sku' => [
                 'required', 'string', 'max:100',
-                Rule::unique('products', 'sku')->where('tenant_id', $this->user()->tenant_id),
+                Rule::unique('products', 'sku')->where('tenant_id', $this->user()?->tenant_id),
             ],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
