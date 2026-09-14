@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\CachesTenantScopedLists;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
@@ -12,15 +13,18 @@ use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
+    use CachesTenantScopedLists;
+
     /** Requires the view-products permission. */
     #[QueryParameter('active_only', description: 'Only return active products.', type: 'bool', default: false)]
     #[QueryParameter('per_page', description: 'Items per page.', type: 'int', default: 15, example: 25)]
     public function index(Request $request)
     {
-        $products = Product::query()
+        $products = $this->rememberTenantList('products', $request, fn () => Product::query()
             ->with('category')
             ->when($request->boolean('active_only'), fn ($q) => $q->active())
-            ->paginate($request->integer('per_page', 15));
+            ->paginate($request->integer('per_page', 15))
+        );
 
         return ProductResource::collection($products);
     }
@@ -36,6 +40,8 @@ class ProductController extends Controller
     {
         $product = Product::create($request->validated())->fresh();
 
+        $this->flushTenantList('products', $product->tenant_id);
+
         return (new ProductResource($product))->response()->setStatusCode(201);
     }
 
@@ -44,6 +50,8 @@ class ProductController extends Controller
     {
         $product->update($request->validated());
 
+        $this->flushTenantList('products', $product->tenant_id);
+
         return new ProductResource($product);
     }
 
@@ -51,6 +59,8 @@ class ProductController extends Controller
     public function destroy(Product $product)
     {
         $product->delete();
+
+        $this->flushTenantList('products', $product->tenant_id);
 
         return response()->noContent();
     }

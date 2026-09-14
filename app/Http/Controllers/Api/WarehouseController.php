@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\CachesTenantScopedLists;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreWarehouseRequest;
 use App\Http\Requests\UpdateWarehouseRequest;
@@ -12,14 +13,17 @@ use Illuminate\Http\Request;
 
 class WarehouseController extends Controller
 {
+    use CachesTenantScopedLists;
+
     /** Requires the view-warehouses permission. */
     #[QueryParameter('active_only', description: 'Only return active warehouses.', type: 'bool', default: false)]
     #[QueryParameter('per_page', description: 'Items per page.', type: 'int', default: 15, example: 25)]
     public function index(Request $request)
     {
-        $warehouses = Warehouse::query()
+        $warehouses = $this->rememberTenantList('warehouses', $request, fn () => Warehouse::query()
             ->when($request->boolean('active_only'), fn ($q) => $q->active())
-            ->paginate($request->integer('per_page', 15));
+            ->paginate($request->integer('per_page', 15))
+        );
 
         return WarehouseResource::collection($warehouses);
     }
@@ -35,6 +39,8 @@ class WarehouseController extends Controller
     {
         $warehouse = Warehouse::create($request->validated())->fresh();
 
+        $this->flushTenantList('warehouses', $warehouse->tenant_id);
+
         return (new WarehouseResource($warehouse))->response()->setStatusCode(201);
     }
 
@@ -43,6 +49,8 @@ class WarehouseController extends Controller
     {
         $warehouse->update($request->validated());
 
+        $this->flushTenantList('warehouses', $warehouse->tenant_id);
+
         return new WarehouseResource($warehouse);
     }
 
@@ -50,6 +58,8 @@ class WarehouseController extends Controller
     public function destroy(Warehouse $warehouse)
     {
         $warehouse->delete();
+
+        $this->flushTenantList('warehouses', $warehouse->tenant_id);
 
         return response()->noContent();
     }
