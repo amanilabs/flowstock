@@ -1,0 +1,54 @@
+# --- Stage 1: install PHP dependencies with build tools available ---
+FROM php:8.4-cli AS vendor
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+        libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN docker-php-ext-install pdo_pgsql
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/html
+
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-interaction --prefer-dist --no-autoloader
+
+COPY . .
+RUN composer dump-autoload --no-dev --optimize --classmap-authoritative \
+    && php artisan package:discover --ansi
+
+# --- Stage 2: minimal runtime image, no build tools, no dev dependencies ---
+FROM php:8.4-fpm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+RUN install-php-extensions \
+        pdo_pgsql \
+        pgsql \
+        redis \
+        mbstring \
+        bcmath \
+        zip \
+        intl \
+        opcache \
+        pcntl
+
+WORKDIR /var/www/html
+
+COPY docker/php/php.prod.ini /usr/local/etc/php/conf.d/99-local.ini
+COPY docker/php/entrypoint.prod.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+COPY --from=vendor --chown=www-data:www-data /var/www/html /var/www/html
+
+RUN chown -R www-data:www-data storage bootstrap/cache
+
+EXPOSE 9000
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["php-fpm"]

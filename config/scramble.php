@@ -2,7 +2,6 @@
 
 use Dedoc\Scramble\Http\Middleware\RestrictedDocsAccess;
 use Dedoc\Scramble\SecurityDocumentation\MiddlewareAuthSecurityStrategy;
-use Dedoc\Scramble\Support\Generator\SecurityScheme;
 
 return [
     /*
@@ -182,8 +181,10 @@ return [
     'security_strategy' => [
         MiddlewareAuthSecurityStrategy::class,
         [
+            // 'scheme' deliberately omitted: it defaults to SecurityScheme::http('bearer')
+            // internally, and storing an object instance here breaks `config:cache`
+            // (not var_export-serializable).
             'middleware' => ['auth:sanctum'],
-            'scheme' => SecurityScheme::http('bearer'),
         ],
     ],
 ];
