@@ -44,7 +44,9 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1.5">
-          <ClipboardList className="size-5" />
+          <div className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-md">
+            <ClipboardList className="size-4" />
+          </div>
           <span className="text-sm font-semibold">FlowStock</span>
         </div>
       </SidebarHeader>
