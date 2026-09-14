@@ -64,6 +64,7 @@ jobs:
           DB_DATABASE: flowstock_test
           DB_USERNAME: flowstock
           DB_PASSWORD: secret
+          REDIS_HOST: 127.0.0.1
 
       - name: Generate application key
         run: php artisan key:generate
@@ -74,6 +75,7 @@ jobs:
           DB_DATABASE: flowstock_test
           DB_USERNAME: flowstock
           DB_PASSWORD: secret
+          REDIS_HOST: 127.0.0.1
 
       - name: Run migrations
         run: php artisan migrate --force
@@ -84,6 +86,7 @@ jobs:
           DB_DATABASE: flowstock_test
           DB_USERNAME: flowstock
           DB_PASSWORD: secret
+          REDIS_HOST: 127.0.0.1
 
       - name: Run Pest test suite
         run: vendor/bin/pest
@@ -94,6 +97,7 @@ jobs:
           DB_DATABASE: flowstock_test
           DB_USERNAME: flowstock
           DB_PASSWORD: secret
+          REDIS_HOST: 127.0.0.1
 
   lint:
     runs-on: ubuntu-latest
