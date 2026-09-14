@@ -83,6 +83,12 @@ docker compose exec app php artisan test          # real Postgres, not SQLite
 docker compose -f docker-compose.prod.yml up -d --build   # hardened prod stack
 ```
 
+## Admin dashboard
+
+A React + TypeScript admin UI lives in [`frontend/`](frontend/README.md)
+(shadcn/ui, RBAC-aware) — products, stock, orders with full lifecycle
+actions, audit logs. See its own README for setup.
+
 ## License
 
 [MIT](https://opensource.org/licenses/MIT)
