@@ -55,11 +55,22 @@ docker compose exec app php artisan migrate
 
 App: `http://localhost:8081` · Docs: `http://localhost:8081/docs/api`
 
-No self-service registration — create your first tenant/admin via
-Tinker (`docker compose exec app php artisan tinker`):
+No self-service registration. Fastest way to get real, varied data —
+products, stock, orders in every lifecycle state, audit logs — is the
+demo seeder (safe to rerun, it resets its own tenant each time):
+
+```bash
+docker compose exec app php artisan db:seed --class=DemoDataSeeder
+```
+
+Prints login credentials when it finishes (`admin@acme.test` /
+`manager@acme.test` / `staff@acme.test`, password `password`).
+
+To create a tenant/admin manually instead, use Tinker
+(`docker compose exec app php artisan tinker`):
 
 ```php
-$tenant = App\Models\Tenant::create(['name' => 'Acme Inc']);
+$tenant = App\Models\Tenant::create(['name' => 'Acme Inc', 'slug' => 'acme-inc', 'status' => 'active']);
 $user = App\Models\User::create(['tenant_id' => $tenant->id, 'name' => 'Admin', 'email' => 'admin@acme.test', 'password' => Hash::make('password')]);
 app(Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($tenant->id);
 $user->assignRole('Admin');
