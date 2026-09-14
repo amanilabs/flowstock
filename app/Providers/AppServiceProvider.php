@@ -11,6 +11,7 @@ use Dedoc\Scramble\Support\Generator\Types\IntegerType;
 use Dedoc\Scramble\Support\Generator\Types\ObjectType;
 use Dedoc\Scramble\Support\Generator\Types\StringType;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -38,6 +39,23 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->documentRateLimiting();
+        $this->configureTrustedProxies();
+    }
+
+    /**
+     * See config/security.php for what TRUSTED_PROXIES actually controls.
+     */
+    private function configureTrustedProxies(): void
+    {
+        $trustedProxies = trim((string) config('security.trusted_proxies', ''));
+
+        if ($trustedProxies === '') {
+            return;
+        }
+
+        TrustProxies::at(
+            $trustedProxies === '*' ? '*' : array_map('trim', explode(',', $trustedProxies)),
+        );
     }
 
     /**

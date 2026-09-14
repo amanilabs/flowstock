@@ -33,6 +33,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // `Accept: application/json` header. Always returning null means the
         // auth middleware falls through to a clean 401 JSON response instead.
         $middleware->redirectGuestsTo(fn () => null);
+
+        // Trusted-proxy config lives in AppServiceProvider::boot() instead of here:
+        // this closure fires the moment HttpKernel is first resolved (in
+        // public/index.php), which is *before* the framework's bootstrappers load
+        // .env — env()/config() aren't reliable yet at this point.
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn ($request, $throwable) => $request->is('api/*') || $request->expectsJson()
