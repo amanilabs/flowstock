@@ -16,6 +16,7 @@ class RoleSeeder extends Seeder
         'view-stock', 'adjust-stock',
         'view-customers', 'manage-customers',
         'view-orders', 'create-orders', 'manage-orders', 'cancel-orders', 'refund-orders',
+        'view-audit-logs',
     ];
 
     public function run(): void

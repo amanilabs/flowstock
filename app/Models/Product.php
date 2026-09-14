@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\StampsTenantOnActivity;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -11,11 +12,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
-    use BelongsToTenant, HasFactory, SoftDeletes;
+    use BelongsToTenant, HasFactory, LogsActivity, SoftDeletes, StampsTenantOnActivity;
 
     protected $fillable = [
         'tenant_id',
@@ -48,6 +51,14 @@ class Product extends Model
     public function stock(): HasMany
     {
         return $this->hasMany(ProductStock::class);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['sku', 'name', 'description', 'barcode', 'unit_of_measure', 'cost_price', 'selling_price', 'reorder_point', 'is_active', 'category_id'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
     }
 
     public function scopeActive(Builder $query): void

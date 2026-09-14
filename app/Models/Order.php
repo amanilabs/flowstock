@@ -4,14 +4,17 @@ namespace App\Models;
 
 use App\Enums\OrderStatus;
 use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\StampsTenantOnActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class Order extends Model
 {
-    use BelongsToTenant, HasFactory;
+    use BelongsToTenant, HasFactory, LogsActivity, StampsTenantOnActivity;
 
     protected $fillable = [
         'tenant_id',
@@ -54,5 +57,13 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['status', 'notes', 'confirmed_at', 'shipped_at', 'delivered_at', 'cancelled_at', 'refunded_at'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
     }
 }
