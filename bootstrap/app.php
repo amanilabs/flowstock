@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -49,6 +50,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
             if ($e instanceof InvalidOrderTransitionException) {
                 return response()->json(['message' => $e->getMessage()], 409);
+            }
+
+            if ($e instanceof ThrottleRequestsException) {
+                return response()->json([
+                    'message' => 'Too many requests. Please slow down and try again shortly.',
+                ], 429, $e->getHeaders());
             }
 
             if ($e instanceof AuthenticationException) {
