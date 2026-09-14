@@ -25,6 +25,14 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->appendToGroup('web', SetPermissionsTeamId::class);
         $middleware->throttleApi();
+
+        // This is an API-only app — there is no "login" web route to redirect
+        // guests to. Laravel's skeleton defaults this to route('login'), which
+        // doesn't exist here and throws RouteNotFoundException (a raw 500)
+        // for any unauthenticated request that doesn't send an explicit
+        // `Accept: application/json` header. Always returning null means the
+        // auth middleware falls through to a clean 401 JSON response instead.
+        $middleware->redirectGuestsTo(fn () => null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn ($request, $throwable) => $request->is('api/*') || $request->expectsJson()

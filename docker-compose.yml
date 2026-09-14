@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
+    image: flowstock-app:dev
     container_name: flowstock-app
     volumes:
       - .:/var/www/html
@@ -19,6 +20,7 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
+    image: flowstock-app:dev
     container_name: flowstock-queue-worker
     command: php artisan queue:work redis --queue=default --tries=3 --backoff=10 --max-time=3600 --sleep=3
     volumes:
@@ -37,6 +39,7 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
+    image: flowstock-app:dev
     container_name: flowstock-scheduler
     command: php artisan schedule:work
     volumes:

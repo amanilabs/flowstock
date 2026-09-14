@@ -23,6 +23,19 @@ it('returns a clean 401 with no leaked internals when unauthenticated', function
     assertNoLeakedInternals($response);
 });
 
+it('returns a clean 401, not a 500, for a plain unauthenticated request with no Accept header', function () {
+    // Regression test: getJson()/postJson() always set Accept: application/json,
+    // which masked a real bug — Laravel's skeleton defaults guest redirects to
+    // route('login'), which doesn't exist in this API-only app, and only
+    // AuthenticationException's ternary skips that redirect when the request
+    // "expects JSON" (i.e. sent an explicit Accept header). A bare client that
+    // omits it hit a raw RouteNotFoundException instead of a clean 401.
+    $response = $this->get('/api/v1/products')->assertStatus(401);
+
+    $response->assertExactJson(['message' => 'Unauthenticated.']);
+    assertNoLeakedInternals($response);
+});
+
 it('returns a clean 403 with no leaked internals when unauthorized', function () {
     $tenant = Tenant::factory()->create();
     actingAsRole('Staff', $tenant);
