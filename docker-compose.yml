@@ -33,6 +33,24 @@ services:
     networks:
       - flowstock
 
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: flowstock-scheduler
+    command: php artisan schedule:work
+    volumes:
+      - .:/var/www/html
+    working_dir: /var/www/html
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - flowstock
+
   nginx:
     image: nginx:stable-alpine
     container_name: flowstock-nginx

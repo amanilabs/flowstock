@@ -4,6 +4,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -23,6 +24,9 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->afterEach(fn () => Cache::flush()) // RefreshDatabase only rolls back the DB — the
+    // array cache store (rate limiter hits, app cache) persists for the whole test
+    // process otherwise, letting one test's throttled requests poison the next.
     ->in('Feature', 'Unit');
 
 // Deliberately NOT bound with RefreshDatabase: this suite proves a real
