@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\OrderController;
@@ -59,5 +60,8 @@ Route::prefix('v1')->group(function () {
                 ->middleware('can:cancel-orders');
             Route::post('orders/{order}/refund', [OrderController::class, 'refund'])
                 ->middleware('can:refund-orders');
+
+            Route::get('audit-logs', [AuditLogController::class, 'index'])
+                ->middleware('can:view-audit-logs');
         });
 });
