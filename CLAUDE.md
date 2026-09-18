@@ -27,10 +27,10 @@ explicitly and still in force:
   trade-off and let the user pick** rather than silently choosing one.
 - **Stop after each step** and wait, rather than chaining multiple steps
   together unprompted.
-- **Keep explanations and plans concise.** Lead with the important
-  decisions first; only go into technical detail if asked. When presenting
-  choices, briefly explain the main differences rather than an exhaustive
-  comparison. Work step by step.
+- **Always keep explanations short — no exceptions.** Lead with the
+  decision/result, skip narrative build-up, expand into detail only if
+  asked. Plans, summaries, and status updates should be a few lines/bullets,
+  not paragraphs. This applies every time, not just when things feel complex.
 
 ## Architecture decisions already made (don't re-litigate without cause)
 
