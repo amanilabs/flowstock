@@ -47,14 +47,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
+import { TableStateRow } from '@/components/TableStateRow'
 
 const warehouseSchema = z.object({
   name: z.string().min(1, 'Required'),
   code: z.string().min(1, 'Required'),
   address_line1: z.string().min(1, 'Required'),
+  address_line2: z.string().optional(),
   city: z.string().min(1, 'Required'),
+  state: z.string().optional(),
   postal_code: z.string().min(1, 'Required'),
   country: z.string().min(1, 'Required'),
+  contact_name: z.string().optional(),
+  contact_phone: z.string().optional(),
+  contact_email: z.string().email().optional().or(z.literal('')),
+  is_active: z.boolean(),
 })
 
 type WarehouseFormValues = z.infer<typeof warehouseSchema>
@@ -74,7 +81,7 @@ export function WarehousesPage() {
 
   useEffect(() => setPage(1), [search, status])
 
-  const { data, isLoading } = useWarehouses({
+  const { data, isLoading, isError, refetch } = useWarehouses({
     page,
     search: search || undefined,
     active_only: status === 'active' ? true : undefined,
@@ -149,18 +156,15 @@ export function WarehousesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-muted-foreground text-center">
-                  Loading…
-                </TableCell>
-              </TableRow>
-            ) : visibleWarehouses?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-muted-foreground text-center">
-                  No warehouses match your filters.
-                </TableCell>
-              </TableRow>
+            {isLoading || isError || visibleWarehouses?.length === 0 ? (
+              <TableStateRow
+                colSpan={8}
+                isLoading={isLoading}
+                isError={isError}
+                isEmpty={visibleWarehouses?.length === 0}
+                emptyMessage="No warehouses match your filters."
+                onRetry={refetch}
+              />
             ) : (
               visibleWarehouses?.map((warehouse) => (
                 <TableRow key={warehouse.id}>
@@ -246,9 +250,15 @@ function WarehouseFormDialog({
       name: warehouse?.name ?? '',
       code: warehouse?.code ?? '',
       address_line1: warehouse?.address_line1 ?? '',
+      address_line2: warehouse?.address_line2 ?? '',
       city: warehouse?.city ?? '',
+      state: warehouse?.state ?? '',
       postal_code: warehouse?.postal_code ?? '',
       country: warehouse?.country ?? '',
+      contact_name: warehouse?.contact_name ?? '',
+      contact_phone: warehouse?.contact_phone ?? '',
+      contact_email: warehouse?.contact_email ?? '',
+      is_active: warehouse?.is_active ?? true,
     },
   })
 
@@ -274,7 +284,7 @@ function WarehouseFormDialog({
   }
 
   return (
-    <DialogContent>
+    <DialogContent className="sm:max-w-2xl">
       <DialogHeader>
         <DialogTitle>{warehouse ? 'Edit warehouse' : 'New warehouse'}</DialogTitle>
       </DialogHeader>
@@ -308,26 +318,54 @@ function WarehouseFormDialog({
               )}
             />
           </div>
-          <FormField
-            control={form.control}
-            name="address_line1"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Address</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="address_line1"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="address_line2"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address line 2</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <FormField
               control={form.control}
               name="city"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>City</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>State</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -362,6 +400,71 @@ function WarehouseFormDialog({
               )}
             />
           </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FormField
+              control={form.control}
+              name="contact_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contact name</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="contact_phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contact phone</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="contact_email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contact email</FormLabel>
+                  <FormControl>
+                    <Input type="email" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <FormField
+            control={form.control}
+            name="is_active"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select
+                  onValueChange={(v) => field.onChange(v === 'true')}
+                  value={field.value ? 'true' : 'false'}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full sm:w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="true">Active</SelectItem>
+                    <SelectItem value="false">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <DialogFooter>
             <Button type="submit" disabled={form.formState.isSubmitting}>
               {warehouse ? 'Save changes' : 'Create warehouse'}

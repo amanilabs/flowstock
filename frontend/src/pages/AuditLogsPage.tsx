@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
+import { TableStateRow } from '@/components/TableStateRow'
 
 const SUBJECT_TYPES = [
   { label: 'Product', value: 'App\\Models\\Product' },
@@ -118,7 +119,7 @@ export function AuditLogsPage() {
 
   useEffect(() => setPage(1), [search, action, subjectType, from, to])
 
-  const { data, isLoading } = useAuditLogs({
+  const { data, isLoading, isError, refetch } = useAuditLogs({
     page,
     causer_search: search || undefined,
     event: action && action !== 'login' ? action : undefined,
@@ -193,18 +194,15 @@ export function AuditLogsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-muted-foreground text-center">
-                  Loading…
-                </TableCell>
-              </TableRow>
-            ) : data?.data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-muted-foreground text-center">
-                  No matching audit log entries.
-                </TableCell>
-              </TableRow>
+            {isLoading || isError || data?.data.length === 0 ? (
+              <TableStateRow
+                colSpan={5}
+                isLoading={isLoading}
+                isError={isError}
+                isEmpty={data?.data.length === 0}
+                emptyMessage="No matching audit log entries."
+                onRetry={refetch}
+              />
             ) : (
               data?.data.map((log) => (
                 <TableRow key={log.id} className="cursor-pointer" onClick={() => setViewing(log)}>

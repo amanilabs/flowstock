@@ -49,6 +49,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
+import { TableStateRow } from '@/components/TableStateRow'
 
 const productSchema = z.object({
   name: z.string().min(1, 'Required'),
@@ -59,6 +60,7 @@ const productSchema = z.object({
   selling_price: z.coerce.number().min(0),
   reorder_point: z.coerce.number().min(0),
   description: z.string().optional(),
+  is_active: z.boolean(),
 })
 
 type ProductFormValues = z.infer<typeof productSchema>
@@ -79,7 +81,7 @@ export function ProductsPage() {
 
   useEffect(() => setPage(1), [search, categoryId, status])
 
-  const { data, isLoading } = useProducts({
+  const { data, isLoading, isError, refetch } = useProducts({
     page,
     search: search || undefined,
     category_id: categoryId !== 'all' ? Number(categoryId) : undefined,
@@ -172,18 +174,15 @@ export function ProductsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-muted-foreground text-center">
-                  Loading…
-                </TableCell>
-              </TableRow>
-            ) : visibleProducts?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-muted-foreground text-center">
-                  No products match your filters.
-                </TableCell>
-              </TableRow>
+            {isLoading || isError || visibleProducts?.length === 0 ? (
+              <TableStateRow
+                colSpan={7}
+                isLoading={isLoading}
+                isError={isError}
+                isEmpty={visibleProducts?.length === 0}
+                emptyMessage="No products match your filters."
+                onRetry={refetch}
+              />
             ) : (
               visibleProducts?.map((product) => (
                 <TableRow key={product.id}>
@@ -277,6 +276,7 @@ function ProductFormDialog({
       selling_price: product ? Math.round(Number(product.selling_price) * 100) / 100 : 0,
       reorder_point: product?.reorder_point ?? 0,
       description: product?.description ?? '',
+      is_active: product?.is_active ?? true,
     },
   })
 
@@ -434,6 +434,30 @@ function ProductFormDialog({
               )}
             />
           </div>
+          <FormField
+            control={form.control}
+            name="is_active"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select
+                  onValueChange={(v) => field.onChange(v === 'true')}
+                  value={field.value ? 'true' : 'false'}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full sm:w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="true">Active</SelectItem>
+                    <SelectItem value="false">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <DialogFooter>
             <Button type="submit" disabled={form.formState.isSubmitting}>
               {product ? 'Save changes' : 'Create product'}

@@ -46,6 +46,7 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
+import { TableStateRow } from '@/components/TableStateRow'
 
 const categorySchema = z.object({
   name: z.string().min(1, 'Required'),
@@ -68,7 +69,7 @@ export function CategoriesPage() {
 
   useEffect(() => setPage(1), [search])
 
-  const { data, isLoading } = useCategories({ page, search: search || undefined })
+  const { data, isLoading, isError, refetch } = useCategories({ page, search: search || undefined })
   const deleteCategory = useDeleteCategory()
 
   async function confirmDelete() {
@@ -121,18 +122,15 @@ export function CategoriesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-muted-foreground text-center">
-                  Loading…
-                </TableCell>
-              </TableRow>
-            ) : data?.data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-muted-foreground text-center">
-                  No categories match your search.
-                </TableCell>
-              </TableRow>
+            {isLoading || isError || data?.data.length === 0 ? (
+              <TableStateRow
+                colSpan={4}
+                isLoading={isLoading}
+                isError={isError}
+                isEmpty={data?.data.length === 0}
+                emptyMessage="No categories match your search."
+                onRetry={refetch}
+              />
             ) : (
               data?.data.map((category) => (
                 <TableRow key={category.id}>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, MoreHorizontal, Plus } from 'lucide-react'
-import { useForm } from 'react-hook-form'
+import { type Control, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { useAuth } from '@/contexts/AuthContext'
@@ -47,15 +47,39 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Textarea } from '@/components/ui/textarea'
 import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
 import { OrderStatusBadge } from '@/components/StatusBadge'
+import { TableStateRow } from '@/components/TableStateRow'
+
+const addressFields = {
+  address_line1: z.string().optional(),
+  address_line2: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  postal_code: z.string().optional(),
+  country: z.string().optional(),
+}
 
 const customerSchema = z.object({
   name: z.string().min(1, 'Required'),
   company_name: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
+  billing_address_line1: addressFields.address_line1,
+  billing_address_line2: addressFields.address_line2,
+  billing_city: addressFields.city,
+  billing_state: addressFields.state,
+  billing_postal_code: addressFields.postal_code,
+  billing_country: addressFields.country,
+  shipping_address_line1: addressFields.address_line1,
+  shipping_address_line2: addressFields.address_line2,
+  shipping_city: addressFields.city,
+  shipping_state: addressFields.state,
+  shipping_postal_code: addressFields.postal_code,
+  shipping_country: addressFields.country,
+  notes: z.string().optional(),
 })
 
 type CustomerFormValues = z.infer<typeof customerSchema>
@@ -75,7 +99,7 @@ export function CustomersPage() {
 
   useEffect(() => setPage(1), [search])
 
-  const { data, isLoading } = useCustomers({ page, search: search || undefined })
+  const { data, isLoading, isError, refetch } = useCustomers({ page, search: search || undefined })
   const deleteCustomer = useDeleteCustomer()
 
   async function confirmDelete() {
@@ -131,18 +155,15 @@ export function CustomersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-muted-foreground text-center">
-                  Loading…
-                </TableCell>
-              </TableRow>
-            ) : data?.data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-muted-foreground text-center">
-                  No customers match your search.
-                </TableCell>
-              </TableRow>
+            {isLoading || isError || data?.data.length === 0 ? (
+              <TableStateRow
+                colSpan={7}
+                isLoading={isLoading}
+                isError={isError}
+                isEmpty={data?.data.length === 0}
+                emptyMessage="No customers match your search."
+                onRetry={refetch}
+              />
             ) : (
               data?.data.map((customer) => (
                 <TableRow key={customer.id}>
@@ -295,6 +316,101 @@ function CustomerDetailSheet({ customer, onClose }: { customer: Customer | null;
   )
 }
 
+function AddressFields({
+  control,
+  prefix,
+}: {
+  control: Control<CustomerFormValues>
+  prefix: 'billing' | 'shipping'
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField
+          control={control}
+          name={`${prefix}_address_line1`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name={`${prefix}_address_line2`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address line 2</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <FormField
+          control={control}
+          name={`${prefix}_city`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>City</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name={`${prefix}_state`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>State</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name={`${prefix}_postal_code`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Postal code</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name={`${prefix}_country`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Country</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+    </div>
+  )
+}
+
 function CustomerFormDialog({
   customer,
   onSaved,
@@ -312,6 +428,19 @@ function CustomerFormDialog({
       company_name: customer?.company_name ?? '',
       email: customer?.email ?? '',
       phone: customer?.phone ?? '',
+      billing_address_line1: customer?.billing_address_line1 ?? '',
+      billing_address_line2: customer?.billing_address_line2 ?? '',
+      billing_city: customer?.billing_city ?? '',
+      billing_state: customer?.billing_state ?? '',
+      billing_postal_code: customer?.billing_postal_code ?? '',
+      billing_country: customer?.billing_country ?? '',
+      shipping_address_line1: customer?.shipping_address_line1 ?? '',
+      shipping_address_line2: customer?.shipping_address_line2 ?? '',
+      shipping_city: customer?.shipping_city ?? '',
+      shipping_state: customer?.shipping_state ?? '',
+      shipping_postal_code: customer?.shipping_postal_code ?? '',
+      shipping_country: customer?.shipping_country ?? '',
+      notes: customer?.notes ?? '',
     },
   })
 
@@ -337,7 +466,7 @@ function CustomerFormDialog({
   }
 
   return (
-    <DialogContent>
+    <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader>
         <DialogTitle>{customer ? 'Edit customer' : 'New customer'}</DialogTitle>
       </DialogHeader>
@@ -369,7 +498,7 @@ function CustomerFormDialog({
               </FormItem>
             )}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
               name="email"
@@ -397,6 +526,27 @@ function CustomerFormDialog({
               )}
             />
           </div>
+
+          <div className="text-sm font-medium">Billing address</div>
+          <AddressFields control={form.control} prefix="billing" />
+
+          <div className="text-sm font-medium">Shipping address</div>
+          <AddressFields control={form.control} prefix="shipping" />
+
+          <FormField
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Notes</FormLabel>
+                <FormControl>
+                  <Textarea {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <DialogFooter>
             <Button type="submit" disabled={form.formState.isSubmitting}>
               {customer ? 'Save changes' : 'Create customer'}

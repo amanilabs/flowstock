@@ -29,6 +29,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { OrderStatusBadge } from '@/components/StatusBadge'
 import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
+import { TableStateRow } from '@/components/TableStateRow'
 
 const STATUS_OPTIONS: (OrderStatus | '')[] = [
   '',
@@ -66,7 +67,7 @@ export function OrdersPage() {
 
   useEffect(() => setPage(1), [search, status])
 
-  const { data, isLoading } = useOrders({ page, status, search: search || undefined })
+  const { data, isLoading, isError, refetch } = useOrders({ page, status, search: search || undefined })
 
   return (
     <div className="flex flex-col gap-4">
@@ -124,18 +125,15 @@ export function OrdersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground text-center">
-                  Loading…
-                </TableCell>
-              </TableRow>
-            ) : data?.data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground text-center">
-                  No orders found.
-                </TableCell>
-              </TableRow>
+            {isLoading || isError || data?.data.length === 0 ? (
+              <TableStateRow
+                colSpan={6}
+                isLoading={isLoading}
+                isError={isError}
+                isEmpty={data?.data.length === 0}
+                emptyMessage="No orders found."
+                onRetry={refetch}
+              />
             ) : (
               data?.data.map((order) => (
                 <TableRow

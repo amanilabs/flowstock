@@ -34,6 +34,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
+import { TableStateRow } from '@/components/TableStateRow'
 
 const STATUS_LABEL: Record<InventoryStatus, string> = {
   in_stock: 'In stock',
@@ -67,7 +68,7 @@ export function StockPage() {
 
   useEffect(() => setPage(1), [search, warehouseId, productId, categoryId, lowStockOnly])
 
-  const { data, isLoading } = useInventory({
+  const { data, isLoading, isError, refetch } = useInventory({
     page,
     search: search || undefined,
     warehouse_id: warehouseId !== 'all' ? Number(warehouseId) : undefined,
@@ -156,18 +157,15 @@ export function StockPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-muted-foreground text-center">
-                  Loading…
-                </TableCell>
-              </TableRow>
-            ) : data?.data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-muted-foreground text-center">
-                  No inventory matches your filters.
-                </TableCell>
-              </TableRow>
+            {isLoading || isError || data?.data.length === 0 ? (
+              <TableStateRow
+                colSpan={9}
+                isLoading={isLoading}
+                isError={isError}
+                isEmpty={data?.data.length === 0}
+                emptyMessage="No inventory matches your filters."
+                onRetry={refetch}
+              />
             ) : (
               data?.data.map((row) => (
                 <TableRow
@@ -325,7 +323,7 @@ function AdjustStockDialog({ row, onSaved }: { row: InventoryRow; onSaved: () =>
 }
 
 function StockHistoryDialog({ row }: { row: InventoryRow }) {
-  const { data, isLoading } = useStockMovements(row.product.id, row.warehouse.id)
+  const { data, isLoading, isError, refetch } = useStockMovements(row.product.id, row.warehouse.id)
 
   return (
     <DialogContent className="max-w-2xl">
@@ -345,18 +343,15 @@ function StockHistoryDialog({ row }: { row: InventoryRow }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-muted-foreground text-center">
-                  Loading…
-                </TableCell>
-              </TableRow>
-            ) : data?.data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-muted-foreground text-center">
-                  No movements recorded yet.
-                </TableCell>
-              </TableRow>
+            {isLoading || isError || data?.data.length === 0 ? (
+              <TableStateRow
+                colSpan={5}
+                isLoading={isLoading}
+                isError={isError}
+                isEmpty={data?.data.length === 0}
+                emptyMessage="No movements recorded yet."
+                onRetry={refetch}
+              />
             ) : (
               data?.data.map((movement) => (
                 <TableRow key={movement.id}>

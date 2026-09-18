@@ -36,6 +36,7 @@ class OrderController extends Controller
                     ->where('order_number', 'ilike', "%{$search}%")
                     ->orWhereHas('customer', fn ($q2) => $q2->where('name', 'ilike', "%{$search}%")));
             })
+            ->latest('id')
             ->paginate($request->integer('per_page', 15));
 
         return OrderResource::collection($orders);

@@ -60,6 +60,26 @@ it('filters orders by status', function () {
     expect($confirmedOnly->json('data.0.id'))->toBe($toConfirm->id);
 });
 
+it('lists orders newest first', function () {
+    $tenant = Tenant::factory()->create();
+    actingAsRole('Admin', $tenant);
+
+    $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+    $warehouse = Warehouse::factory()->create(['tenant_id' => $tenant->id]);
+    $product = Product::factory()->create(['tenant_id' => $tenant->id]);
+
+    $orderService = app(OrderService::class);
+    $first = $orderService->createOrder($customer, $warehouse, [['product_id' => $product->id, 'quantity' => 1]]);
+    $second = $orderService->createOrder($customer, $warehouse, [['product_id' => $product->id, 'quantity' => 1]]);
+    $third = $orderService->createOrder($customer, $warehouse, [['product_id' => $product->id, 'quantity' => 1]]);
+
+    $response = $this->getJson('/api/v1/orders')->assertOk();
+
+    expect($response->json('data.0.id'))->toBe($third->id);
+    expect($response->json('data.1.id'))->toBe($second->id);
+    expect($response->json('data.2.id'))->toBe($first->id);
+});
+
 it('rejects an invalid lifecycle transition with a 409 and does not mutate the order', function () {
     $tenant = Tenant::factory()->create();
     actingAsRole('Admin', $tenant);
