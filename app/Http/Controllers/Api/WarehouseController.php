@@ -16,12 +16,24 @@ class WarehouseController extends Controller
     use CachesTenantScopedLists;
 
     /** Requires the view-warehouses permission. */
+    #[QueryParameter('search', description: 'Match against warehouse name, code, or city.', type: 'string')]
     #[QueryParameter('active_only', description: 'Only return active warehouses.', type: 'bool', default: false)]
     #[QueryParameter('per_page', description: 'Items per page.', type: 'int', default: 15, example: 25)]
     public function index(Request $request)
     {
         $warehouses = $this->rememberTenantList('warehouses', $request, fn () => Warehouse::query()
+            // product_stock has a unique (product_id, warehouse_id) row, so a
+            // plain row count here is already the distinct product count.
+            ->withCount('productStock as product_count')
+            ->withSum('productStock as total_stock', 'quantity')
             ->when($request->boolean('active_only'), fn ($q) => $q->active())
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = $request->string('search');
+                $q->where(fn ($q) => $q
+                    ->where('name', 'ilike', "%{$search}%")
+                    ->orWhere('code', 'ilike', "%{$search}%")
+                    ->orWhere('city', 'ilike', "%{$search}%"));
+            })
             ->paginate($request->integer('per_page', 15))
         );
 

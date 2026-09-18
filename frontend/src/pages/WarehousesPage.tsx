@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { MoreHorizontal, Plus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { useAuth } from '@/contexts/AuthContext'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import {
   type WarehouseInput,
   useCreateWarehouse,
@@ -13,6 +15,16 @@ import {
 } from '@/hooks/queries/useWarehouses'
 import { ApiError } from '@/lib/api'
 import type { Warehouse } from '@/types/api'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -31,6 +43,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
@@ -47,20 +60,38 @@ const warehouseSchema = z.object({
 type WarehouseFormValues = z.infer<typeof warehouseSchema>
 
 export function WarehousesPage() {
+  const { hasRole } = useAuth()
+  const canManage = hasRole('Admin')
+
   const [page, setPage] = useState(1)
+  const [searchInput, setSearchInput] = useState('')
+  const search = useDebouncedValue(searchInput, 300)
+  const [status, setStatus] = useState<'all' | 'active' | 'inactive'>('all')
+
   const [editing, setEditing] = useState<Warehouse | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState<Warehouse | null>(null)
 
-  const { data, isLoading } = useWarehouses({ page })
+  useEffect(() => setPage(1), [search, status])
+
+  const { data, isLoading } = useWarehouses({
+    page,
+    search: search || undefined,
+    active_only: status === 'active' ? true : undefined,
+  })
   const deleteWarehouse = useDeleteWarehouse()
 
-  async function handleDelete(warehouse: Warehouse) {
-    if (!confirm(`Delete "${warehouse.name}"? This cannot be undone.`)) return
+  const visibleWarehouses = status === 'inactive' ? data?.data.filter((w) => !w.is_active) : data?.data
+
+  async function confirmDelete() {
+    if (!deleting) return
     try {
-      await deleteWarehouse.mutateAsync(warehouse.id)
+      await deleteWarehouse.mutateAsync(deleting.id)
       toast.success('Warehouse deleted')
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : 'Failed to delete warehouse')
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -70,19 +101,40 @@ export function WarehousesPage() {
         title="Warehouses"
         description="Locations that hold and fulfill your inventory."
         action={
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setEditing(null)}>
-                <Plus className="size-4" />
-                New warehouse
-              </Button>
-            </DialogTrigger>
-            <WarehouseFormDialog warehouse={editing} onSaved={() => setDialogOpen(false)} />
-          </Dialog>
+          canManage && (
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setEditing(null)}>
+                  <Plus className="size-4" />
+                  New warehouse
+                </Button>
+              </DialogTrigger>
+              <WarehouseFormDialog warehouse={editing} onSaved={() => setDialogOpen(false)} />
+            </Dialog>
+          )
         }
       />
 
-      <div className="rounded-md border">
+      <div className="flex flex-wrap gap-3">
+        <Input
+          placeholder="Search by name, code, or city…"
+          className="w-full sm:w-64"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+        <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -90,57 +142,65 @@ export function WarehousesPage() {
               <TableHead>Code</TableHead>
               <TableHead>City</TableHead>
               <TableHead>Country</TableHead>
+              <TableHead>Products</TableHead>
+              <TableHead>Total Stock</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-10" />
+              {canManage && <TableHead className="w-10" />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground text-center">
+                <TableCell colSpan={8} className="text-muted-foreground text-center">
                   Loading…
                 </TableCell>
               </TableRow>
-            ) : data?.data.length === 0 ? (
+            ) : visibleWarehouses?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground text-center">
-                  No warehouses yet.
+                <TableCell colSpan={8} className="text-muted-foreground text-center">
+                  No warehouses match your filters.
                 </TableCell>
               </TableRow>
             ) : (
-              data?.data.map((warehouse) => (
+              visibleWarehouses?.map((warehouse) => (
                 <TableRow key={warehouse.id}>
                   <TableCell className="font-medium">{warehouse.name}</TableCell>
                   <TableCell>{warehouse.code}</TableCell>
                   <TableCell>{warehouse.city}</TableCell>
                   <TableCell>{warehouse.country}</TableCell>
                   <TableCell>
+                    <Badge variant="secondary">{warehouse.product_count ?? 0}</Badge>
+                  </TableCell>
+                  <TableCell>{warehouse.total_stock ?? 0}</TableCell>
+                  <TableCell>
                     <Badge variant={warehouse.is_active ? 'default' : 'secondary'}>
                       {warehouse.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setEditing(warehouse)
-                            setDialogOpen(true)
-                          }}
-                        >
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem variant="destructive" onClick={() => handleDelete(warehouse)}>
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  {canManage && (
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditing(warehouse)
+                              setDialogOpen(true)
+                            }}
+                          >
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onClick={() => setDeleting(warehouse)}>
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -149,6 +209,23 @@ export function WarehousesPage() {
       </div>
 
       {data?.meta && <PaginationBar meta={data.meta} onPageChange={setPage} />}
+
+      <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleting?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleting?.product_count
+                ? `This warehouse holds stock for ${deleting.product_count} product(s). This cannot be undone.`
+                : 'This cannot be undone.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -163,7 +240,7 @@ function WarehouseFormDialog({
   const createWarehouse = useCreateWarehouse()
   const updateWarehouse = useUpdateWarehouse()
 
-  const form = useForm<WarehouseFormValues>({
+  const form = useForm({
     resolver: zodResolver(warehouseSchema),
     values: {
       name: warehouse?.name ?? '',
@@ -186,7 +263,13 @@ function WarehouseFormDialog({
       }
       onSaved()
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : 'Failed to save warehouse')
+      if (error instanceof ApiError && error.errors) {
+        for (const [field, messages] of Object.entries(error.errors)) {
+          form.setError(field as keyof WarehouseFormValues, { message: messages[0] })
+        }
+      } else {
+        toast.error(error instanceof ApiError ? error.message : 'Failed to save warehouse')
+      }
     }
   }
 
@@ -197,7 +280,7 @@ function WarehouseFormDialog({
       </DialogHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
               name="name"
@@ -238,7 +321,7 @@ function WarehouseFormDialog({
               </FormItem>
             )}
           />
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <FormField
               control={form.control}
               name="city"

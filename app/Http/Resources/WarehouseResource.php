@@ -22,6 +22,10 @@ class WarehouseResource extends JsonResource
             'contact_name' => $this->contact_name,
             'contact_phone' => $this->contact_phone,
             'contact_email' => $this->contact_email,
+            // Only present when the query eager-loads them via withCount/withSum
+            // (the index listing) — null on show(), which doesn't need them.
+            'product_count' => $this->product_count ?? null,
+            'total_stock' => $this->total_stock !== null ? (int) $this->total_stock : null,
             'is_active' => $this->is_active,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

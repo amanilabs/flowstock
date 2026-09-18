@@ -17,7 +17,13 @@ export interface WarehouseInput {
   is_active?: boolean
 }
 
-export function useWarehouses(params: { page?: number; active_only?: boolean } = {}) {
+export interface WarehouseFilters {
+  page?: number
+  active_only?: boolean
+  search?: string
+}
+
+export function useWarehouses(params: WarehouseFilters = {}) {
   return useQuery({
     queryKey: ['warehouses', params],
     queryFn: () => api.get<PaginatedResponse<Warehouse>>('/warehouses', params),
