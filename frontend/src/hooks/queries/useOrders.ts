@@ -9,7 +9,15 @@ export interface CreateOrderInput {
   notes?: string
 }
 
-export function useOrders(params: { page?: number; status?: OrderStatus | ''; customer_id?: number } = {}) {
+export interface OrderFilters {
+  page?: number
+  per_page?: number
+  status?: OrderStatus | ''
+  customer_id?: number
+  search?: string
+}
+
+export function useOrders(params: OrderFilters = {}) {
   return useQuery({
     queryKey: ['orders', params],
     queryFn: () => api.get<PaginatedResponse<Order>>('/orders', params),

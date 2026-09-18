@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Warehouse;
 use App\Services\OrderService;
+use Dedoc\Scramble\Attributes\QueryParameter;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\Request;
 
@@ -19,12 +20,22 @@ class OrderController extends Controller
     public function __construct(private readonly OrderService $orderService) {}
 
     /** Requires the view-orders permission. */
+    #[QueryParameter('search', description: 'Match against order number or customer name.', type: 'string')]
+    #[QueryParameter('status', description: 'Filter by order status.', type: 'string')]
+    #[QueryParameter('per_page', description: 'Items per page.', type: 'int', default: 15, example: 25)]
     public function index(Request $request)
     {
         $orders = Order::query()
             ->with(['customer', 'warehouse'])
+            ->withCount('items')
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->filled('customer_id'), fn ($q) => $q->where('customer_id', $request->integer('customer_id')))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = $request->string('search');
+                $q->where(fn ($q) => $q
+                    ->where('order_number', 'ilike', "%{$search}%")
+                    ->orWhereHas('customer', fn ($q2) => $q2->where('name', 'ilike', "%{$search}%")));
+            })
             ->paginate($request->integer('per_page', 15));
 
         return OrderResource::collection($orders);

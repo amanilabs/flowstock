@@ -12,7 +12,18 @@ import {
   useShipOrder,
 } from '@/hooks/queries/useOrders'
 import { ApiError } from '@/lib/api'
+import { formatCurrency } from '@/lib/utils'
 import type { OrderStatus } from '@/types/api'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -26,6 +37,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { OrderStatusBadge } from '@/components/StatusBadge'
 
+// Mirrors OrderService::TRANSITIONS — a UI hint for which action buttons to
+// offer. The backend is the sole enforcer (409 on an invalid transition).
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending: ['confirmed', 'cancelled'],
   confirmed: ['processing', 'shipped', 'cancelled'],
@@ -36,6 +49,31 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   refunded: [],
 }
 
+type SimpleAction = 'confirm' | 'process' | 'ship' | 'deliver'
+
+const SIMPLE_ACTION_COPY: Record<SimpleAction, { label: string; title: string; description: string }> = {
+  confirm: {
+    label: 'Confirm',
+    title: 'Confirm this order?',
+    description: 'This reserves stock for every item on the order.',
+  },
+  process: {
+    label: 'Mark processing',
+    title: 'Mark this order as processing?',
+    description: 'This signals fulfillment has started.',
+  },
+  ship: {
+    label: 'Ship',
+    title: 'Ship this order?',
+    description: 'This deducts the reserved stock from inventory and cannot be undone.',
+  },
+  deliver: {
+    label: 'Mark delivered',
+    title: 'Mark this order as delivered?',
+    description: 'This closes out the fulfillment lifecycle for this order.',
+  },
+}
+
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -44,6 +82,7 @@ export function OrderDetailPage() {
   const { data, isLoading } = useOrder(orderId)
   const [reasonDialog, setReasonDialog] = useState<'cancel' | 'refund' | null>(null)
   const [reason, setReason] = useState('')
+  const [simpleAction, setSimpleAction] = useState<SimpleAction | null>(null)
 
   const confirmOrder = useConfirmOrder()
   const processOrder = useProcessOrder()
@@ -76,6 +115,20 @@ export function OrderDetailPage() {
     }
     setReasonDialog(null)
     setReason('')
+  }
+
+  const SIMPLE_ACTION_MUTATIONS: Record<SimpleAction, { run: () => Promise<unknown>; successMessage: string }> = {
+    confirm: { run: () => confirmOrder.mutateAsync({ id: order.id }), successMessage: 'Order confirmed' },
+    process: { run: () => processOrder.mutateAsync({ id: order.id }), successMessage: 'Order marked processing' },
+    ship: { run: () => shipOrder.mutateAsync({ id: order.id }), successMessage: 'Order shipped' },
+    deliver: { run: () => deliverOrder.mutateAsync({ id: order.id }), successMessage: 'Order delivered' },
+  }
+
+  function submitSimpleAction() {
+    if (!simpleAction) return
+    const { run, successMessage } = SIMPLE_ACTION_MUTATIONS[simpleAction]
+    runAction(run, successMessage)
+    setSimpleAction(null)
   }
 
   const canManage = hasRole('Admin', 'Manager', 'Staff')
@@ -133,8 +186,8 @@ export function OrderDetailPage() {
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.product.name}</TableCell>
                 <TableCell>{item.quantity}</TableCell>
-                <TableCell>${item.unit_price}</TableCell>
-                <TableCell>${item.subtotal}</TableCell>
+                <TableCell>${formatCurrency(item.unit_price)}</TableCell>
+                <TableCell>${formatCurrency(item.subtotal)}</TableCell>
                 <TableCell className="text-muted-foreground">{item.reservation_status ?? '—'}</TableCell>
               </TableRow>
             ))}
@@ -142,7 +195,7 @@ export function OrderDetailPage() {
         </Table>
       </div>
 
-      <p className="text-right text-lg font-semibold">Total: ${order.total_amount}</p>
+      <p className="text-right text-lg font-semibold">Total: ${formatCurrency(order.total_amount)}</p>
 
       {order.notes && (
         <Card>
@@ -156,27 +209,18 @@ export function OrderDetailPage() {
       {allowed.length > 0 && (canManage || canCancel || canRefund) && (
         <div className="flex gap-2 border-t pt-4">
           {allowed.includes('confirmed') && canManage && (
-            <Button onClick={() => runAction(() => confirmOrder.mutateAsync({ id: order.id }), 'Order confirmed')}>
-              Confirm
-            </Button>
+            <Button onClick={() => setSimpleAction('confirm')}>Confirm</Button>
           )}
           {allowed.includes('processing') && canManage && (
-            <Button
-              variant="secondary"
-              onClick={() => runAction(() => processOrder.mutateAsync({ id: order.id }), 'Order marked processing')}
-            >
+            <Button variant="secondary" onClick={() => setSimpleAction('process')}>
               Mark processing
             </Button>
           )}
           {allowed.includes('shipped') && canManage && (
-            <Button onClick={() => runAction(() => shipOrder.mutateAsync({ id: order.id }), 'Order shipped')}>
-              Ship
-            </Button>
+            <Button onClick={() => setSimpleAction('ship')}>Ship</Button>
           )}
           {allowed.includes('delivered') && canManage && (
-            <Button onClick={() => runAction(() => deliverOrder.mutateAsync({ id: order.id }), 'Order delivered')}>
-              Mark delivered
-            </Button>
+            <Button onClick={() => setSimpleAction('deliver')}>Mark delivered</Button>
           )}
           {allowed.includes('cancelled') && canCancel && (
             <Button variant="destructive" onClick={() => setReasonDialog('cancel')}>
@@ -208,6 +252,23 @@ export function OrderDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={simpleAction !== null} onOpenChange={(open) => !open && setSimpleAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{simpleAction && SIMPLE_ACTION_COPY[simpleAction].title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {simpleAction && SIMPLE_ACTION_COPY[simpleAction].description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={submitSimpleAction}>
+              {simpleAction && SIMPLE_ACTION_COPY[simpleAction].label}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -19,6 +19,8 @@ class OrderResource extends JsonResource
             'customer' => new CustomerResource($this->whenLoaded('customer')),
             'warehouse' => new WarehouseResource($this->whenLoaded('warehouse')),
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
+            // Only present when the query eager-loads it via withCount (the index listing).
+            'items_count' => $this->items_count ?? null,
             'total_amount' => $this->total_amount,
             'notes' => $this->notes,
             'confirmed_at' => $this->confirmed_at,

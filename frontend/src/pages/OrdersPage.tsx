@@ -1,15 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus, Trash2 } from 'lucide-react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useCustomers } from '@/hooks/queries/useCustomers'
 import { useCreateOrder, useOrders } from '@/hooks/queries/useOrders'
 import { useProducts } from '@/hooks/queries/useProducts'
 import { useWarehouses } from '@/hooks/queries/useWarehouses'
 import { ApiError } from '@/lib/api'
+import { formatCurrency } from '@/lib/utils'
 import type { OrderStatus } from '@/types/api'
 import { Button } from '@/components/ui/button'
 import {
@@ -57,10 +59,14 @@ type OrderFormValues = z.infer<typeof orderSchema>
 export function OrdersPage() {
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState<OrderStatus | ''>('')
+  const [searchInput, setSearchInput] = useState('')
+  const search = useDebouncedValue(searchInput, 300)
   const [dialogOpen, setDialogOpen] = useState(false)
   const navigate = useNavigate()
 
-  const { data, isLoading } = useOrders({ page, status })
+  useEffect(() => setPage(1), [search, status])
+
+  const { data, isLoading } = useOrders({ page, status, search: search || undefined })
 
   return (
     <div className="flex flex-col gap-4">
@@ -80,33 +86,39 @@ export function OrdersPage() {
         }
       />
 
-      <Select
-        value={status || 'all'}
-        onValueChange={(value) => {
-          setStatus(value === 'all' ? '' : (value as OrderStatus))
-          setPage(1)
-        }}
-      >
-        <SelectTrigger className="w-48">
-          <SelectValue placeholder="All statuses" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All statuses</SelectItem>
-          {STATUS_OPTIONS.filter(Boolean).map((s) => (
-            <SelectItem key={s} value={s}>
-              {s}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex flex-wrap gap-3">
+        <Input
+          placeholder="Search by order # or customer…"
+          className="w-full sm:w-64"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+        <Select
+          value={status || 'all'}
+          onValueChange={(value) => setStatus(value === 'all' ? '' : (value as OrderStatus))}
+        >
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {STATUS_OPTIONS.filter(Boolean).map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Order #</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Items</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Created</TableHead>
             </TableRow>
@@ -114,13 +126,13 @@ export function OrdersPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-muted-foreground text-center">
+                <TableCell colSpan={6} className="text-muted-foreground text-center">
                   Loading…
                 </TableCell>
               </TableRow>
             ) : data?.data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-muted-foreground text-center">
+                <TableCell colSpan={6} className="text-muted-foreground text-center">
                   No orders found.
                 </TableCell>
               </TableRow>
@@ -136,7 +148,8 @@ export function OrdersPage() {
                   <TableCell>
                     <OrderStatusBadge status={order.status} />
                   </TableCell>
-                  <TableCell>${order.total_amount}</TableCell>
+                  <TableCell>{order.items_count ?? '—'}</TableCell>
+                  <TableCell>${formatCurrency(order.total_amount)}</TableCell>
                   <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))
