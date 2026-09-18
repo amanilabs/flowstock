@@ -14,6 +14,9 @@ class ProductCategoryResource extends JsonResource
             'name' => $this->name,
             'slug' => $this->slug,
             'parent_id' => $this->parent_id,
+            // Only present when the query eager-loads it via withCount('products')
+            // (the index listing) — null on show(), which doesn't need it.
+            'product_count' => $this->products_count ?? null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

@@ -8,7 +8,12 @@ export interface CategoryInput {
   parent_id?: number | null
 }
 
-export function useCategories(params: { page?: number } = {}) {
+export interface CategoryFilters {
+  page?: number
+  search?: string
+}
+
+export function useCategories(params: CategoryFilters = {}) {
   return useQuery({
     queryKey: ['categories', params],
     queryFn: () => api.get<PaginatedResponse<ProductCategory>>('/product-categories', params),

@@ -8,6 +8,7 @@ use App\Http\Requests\StoreProductCategoryRequest;
 use App\Http\Requests\UpdateProductCategoryRequest;
 use App\Http\Resources\ProductCategoryResource;
 use App\Models\ProductCategory;
+use Dedoc\Scramble\Attributes\QueryParameter;
 use Illuminate\Http\Request;
 
 class ProductCategoryController extends Controller
@@ -15,9 +16,13 @@ class ProductCategoryController extends Controller
     use CachesTenantScopedLists;
 
     /** Requires the view-categories permission. */
+    #[QueryParameter('search', description: 'Match against category name.', type: 'string')]
+    #[QueryParameter('per_page', description: 'Items per page.', type: 'int', default: 15, example: 25)]
     public function index(Request $request)
     {
         $categories = $this->rememberTenantList('categories', $request, fn () => ProductCategory::query()
+            ->withCount('products')
+            ->when($request->filled('search'), fn ($q) => $q->where('name', 'ilike', '%'.$request->string('search').'%'))
             ->paginate($request->integer('per_page', 15))
         );
 

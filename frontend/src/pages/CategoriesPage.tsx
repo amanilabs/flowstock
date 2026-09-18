@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { MoreHorizontal, Plus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   type CategoryInput,
   useCategories,
@@ -11,8 +12,20 @@ import {
   useDeleteCategory,
   useUpdateCategory,
 } from '@/hooks/queries/useCategories'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { ApiError } from '@/lib/api'
 import type { ProductCategory } from '@/types/api'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -42,20 +55,31 @@ const categorySchema = z.object({
 type CategoryFormValues = z.infer<typeof categorySchema>
 
 export function CategoriesPage() {
+  const { hasRole } = useAuth()
+  const canManage = hasRole('Admin', 'Manager')
+
   const [page, setPage] = useState(1)
+  const [searchInput, setSearchInput] = useState('')
+  const search = useDebouncedValue(searchInput, 300)
+
   const [editing, setEditing] = useState<ProductCategory | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState<ProductCategory | null>(null)
 
-  const { data, isLoading } = useCategories({ page })
+  useEffect(() => setPage(1), [search])
+
+  const { data, isLoading } = useCategories({ page, search: search || undefined })
   const deleteCategory = useDeleteCategory()
 
-  async function handleDelete(category: ProductCategory) {
-    if (!confirm(`Delete "${category.name}"? This cannot be undone.`)) return
+  async function confirmDelete() {
+    if (!deleting) return
     try {
-      await deleteCategory.mutateAsync(category.id)
+      await deleteCategory.mutateAsync(deleting.id)
       toast.success('Category deleted')
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : 'Failed to delete category')
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -65,38 +89,48 @@ export function CategoriesPage() {
         title="Categories"
         description="Organize products into browsable groups."
         action={
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setEditing(null)}>
-                <Plus className="size-4" />
-                New category
-              </Button>
-            </DialogTrigger>
-            <CategoryFormDialog category={editing} onSaved={() => setDialogOpen(false)} />
-          </Dialog>
+          canManage && (
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setEditing(null)}>
+                  <Plus className="size-4" />
+                  New category
+                </Button>
+              </DialogTrigger>
+              <CategoryFormDialog category={editing} onSaved={() => setDialogOpen(false)} />
+            </Dialog>
+          )
         }
       />
 
-      <div className="rounded-md border">
+      <Input
+        placeholder="Search by name…"
+        className="w-full sm:w-64"
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+      />
+
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Slug</TableHead>
-              <TableHead className="w-10" />
+              <TableHead>Products</TableHead>
+              {canManage && <TableHead className="w-10" />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-muted-foreground text-center">
+                <TableCell colSpan={4} className="text-muted-foreground text-center">
                   Loading…
                 </TableCell>
               </TableRow>
             ) : data?.data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-muted-foreground text-center">
-                  No categories yet.
+                <TableCell colSpan={4} className="text-muted-foreground text-center">
+                  No categories match your search.
                 </TableCell>
               </TableRow>
             ) : (
@@ -105,27 +139,32 @@ export function CategoriesPage() {
                   <TableCell className="font-medium">{category.name}</TableCell>
                   <TableCell>{category.slug}</TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setEditing(category)
-                            setDialogOpen(true)
-                          }}
-                        >
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem variant="destructive" onClick={() => handleDelete(category)}>
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Badge variant="secondary">{category.product_count ?? 0}</Badge>
                   </TableCell>
+                  {canManage && (
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditing(category)
+                              setDialogOpen(true)
+                            }}
+                          >
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onClick={() => setDeleting(category)}>
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -134,6 +173,23 @@ export function CategoriesPage() {
       </div>
 
       {data?.meta && <PaginationBar meta={data.meta} onPageChange={setPage} />}
+
+      <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleting?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleting?.product_count
+                ? `This category has ${deleting.product_count} product(s). This cannot be undone.`
+                : 'This cannot be undone.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -148,7 +204,7 @@ function CategoryFormDialog({
   const createCategory = useCreateCategory()
   const updateCategory = useUpdateCategory()
 
-  const form = useForm<CategoryFormValues>({
+  const form = useForm({
     resolver: zodResolver(categorySchema),
     values: { name: category?.name ?? '', slug: category?.slug ?? '' },
   })
@@ -164,7 +220,13 @@ function CategoryFormDialog({
       }
       onSaved()
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : 'Failed to save category')
+      if (error instanceof ApiError && error.errors) {
+        for (const [field, messages] of Object.entries(error.errors)) {
+          form.setError(field as keyof CategoryFormValues, { message: messages[0] })
+        }
+      } else {
+        toast.error(error instanceof ApiError ? error.message : 'Failed to save category')
+      }
     }
   }
 
