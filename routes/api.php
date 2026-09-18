@@ -33,7 +33,13 @@ Route::prefix('v1')->group(function () {
                 ->middlewareFor(['index', 'show'], 'can:view-warehouses')
                 ->middlewareFor(['store', 'update', 'destroy'], 'can:manage-warehouses');
 
+            Route::get('stock', [StockController::class, 'inventory'])
+                ->middleware('can:view-stock');
+
             Route::get('products/{product}/stock', [StockController::class, 'index'])
+                ->middleware('can:view-stock');
+
+            Route::get('products/{product}/stock/movements', [StockController::class, 'movements'])
                 ->middleware('can:view-stock');
 
             Route::post('products/{product}/stock/adjust', [StockController::class, 'adjust'])

@@ -17,6 +17,10 @@ class StockMovementResource extends JsonResource
             'quantity_change' => $this->quantity_change,
             'note' => $this->note,
             'user_id' => $this->user_id,
+            'user' => $this->whenLoaded('user', fn () => $this->user ? [
+                'id' => $this->user->id,
+                'name' => $this->user->name,
+            ] : null),
             'reference_type' => $this->reference_type,
             'reference_id' => $this->reference_id,
             'created_at' => $this->created_at,
