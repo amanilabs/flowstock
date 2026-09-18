@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { ThemeProvider } from '@/components/theme-provider'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { LoginPage } from '@/pages/LoginPage'
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -19,33 +20,35 @@ const queryClient = new QueryClient()
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
 
-            <Route element={<ProtectedRoute />}>
-              <Route element={<DashboardLayout />}>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/products" element={<ProductsPage />} />
-                <Route path="/categories" element={<CategoriesPage />} />
-                <Route path="/warehouses" element={<WarehousesPage />} />
-                <Route path="/stock" element={<StockPage />} />
-                <Route path="/customers" element={<CustomersPage />} />
-                <Route path="/orders" element={<OrdersPage />} />
-                <Route path="/orders/:id" element={<OrderDetailPage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route element={<DashboardLayout />}>
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/products" element={<ProductsPage />} />
+                  <Route path="/categories" element={<CategoriesPage />} />
+                  <Route path="/warehouses" element={<WarehousesPage />} />
+                  <Route path="/stock" element={<StockPage />} />
+                  <Route path="/customers" element={<CustomersPage />} />
+                  <Route path="/orders" element={<OrdersPage />} />
+                  <Route path="/orders/:id" element={<OrderDetailPage />} />
 
-                <Route element={<ProtectedRoute roles={['Admin']} />}>
-                  <Route path="/audit-logs" element={<AuditLogsPage />} />
+                  <Route element={<ProtectedRoute roles={['Admin']} />}>
+                    <Route path="/audit-logs" element={<AuditLogsPage />} />
+                  </Route>
                 </Route>
               </Route>
-            </Route>
-          </Routes>
-          <Toaster richColors position="top-right" />
-        </BrowserRouter>
-      </AuthProvider>
-    </QueryClientProvider>
+            </Routes>
+            <Toaster richColors position="top-right" />
+          </BrowserRouter>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   )
 }
 
