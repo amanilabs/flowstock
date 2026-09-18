@@ -6,6 +6,8 @@ export interface AuditLogFilters {
   page?: number
   subject_type?: string
   log_name?: string
+  event?: string
+  causer_search?: string
   from?: string
   to?: string
 }

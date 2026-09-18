@@ -66,3 +66,36 @@ it('filters audit logs by date range', function () {
 
     expect($response->json('data'))->toBeEmpty();
 });
+
+it('filters audit logs by event, and reports old/new attribute_changes for an update', function () {
+    $tenant = Tenant::factory()->create();
+    actingAsRole('Admin', $tenant);
+
+    $product = Product::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Old Name']);
+    $product->update(['name' => 'New Name']);
+
+    $created = $this->getJson('/api/v1/audit-logs?event=created')->assertOk();
+    expect(collect($created->json('data'))->pluck('event')->unique()->all())->toBe(['created']);
+
+    $updated = $this->getJson('/api/v1/audit-logs?event=updated')->assertOk();
+    expect(collect($updated->json('data'))->pluck('event')->unique()->all())->toBe(['updated']);
+
+    $entry = collect($updated->json('data'))->firstWhere('subject_id', $product->id);
+    expect($entry['attribute_changes']['old']['name'])->toBe('Old Name');
+    expect($entry['attribute_changes']['attributes']['name'])->toBe('New Name');
+});
+
+it('filters audit logs by causer_search matching the causer name or email', function () {
+    $tenant = Tenant::factory()->create();
+    $admin = actingAsRole('Admin', $tenant);
+
+    $product = Product::factory()->create(['tenant_id' => $tenant->id]);
+    $product->update(['name' => 'Renamed']);
+
+    $byName = $this->getJson('/api/v1/audit-logs?causer_search='.urlencode($admin->name))->assertOk();
+    expect($byName->json('data'))->not->toBeEmpty();
+    expect(collect($byName->json('data'))->pluck('causer.id')->unique()->all())->toBe([$admin->id]);
+
+    $byNoMatch = $this->getJson('/api/v1/audit-logs?causer_search=nobody-matches-this')->assertOk();
+    expect($byNoMatch->json('data'))->toBeEmpty();
+});
