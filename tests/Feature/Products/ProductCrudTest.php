@@ -1,8 +1,11 @@
 <?php
 
+use App\Enums\StockMovementType;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Tenant;
+use App\Models\Warehouse;
+use App\Services\StockService;
 
 it('supports full CRUD as Admin', function () {
     $tenant = Tenant::factory()->create();
@@ -75,4 +78,52 @@ it('computes margin and marginPercentage correctly', function () {
 
     expect((float) $product->margin)->toBe(5.0);
     expect((float) $product->marginPercentage)->toBe(50.0);
+});
+
+it('filters the index by search matching name or SKU', function () {
+    $tenant = Tenant::factory()->create();
+    actingAsRole('Admin', $tenant);
+
+    Product::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Blue Widget', 'sku' => 'BW-1']);
+    Product::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Red Gadget', 'sku' => 'RG-2']);
+
+    $byName = $this->getJson('/api/v1/products?search=widget')->assertOk();
+    expect($byName->json('data'))->toHaveCount(1);
+    expect($byName->json('data.0.name'))->toBe('Blue Widget');
+
+    $bySku = $this->getJson('/api/v1/products?search=RG-2')->assertOk();
+    expect($bySku->json('data'))->toHaveCount(1);
+    expect($bySku->json('data.0.sku'))->toBe('RG-2');
+});
+
+it('filters the index by category_id', function () {
+    $tenant = Tenant::factory()->create();
+    actingAsRole('Admin', $tenant);
+
+    $categoryA = ProductCategory::factory()->create(['tenant_id' => $tenant->id]);
+    $categoryB = ProductCategory::factory()->create(['tenant_id' => $tenant->id]);
+    Product::factory()->create(['tenant_id' => $tenant->id, 'category_id' => $categoryA->id]);
+    Product::factory()->create(['tenant_id' => $tenant->id, 'category_id' => $categoryB->id]);
+
+    $response = $this->getJson("/api/v1/products?category_id={$categoryA->id}")->assertOk();
+
+    expect($response->json('data'))->toHaveCount(1);
+    expect($response->json('data.0.category.id'))->toBe($categoryA->id);
+});
+
+it('reports total_stock summed across every warehouse on the index', function () {
+    $tenant = Tenant::factory()->create();
+    actingAsRole('Admin', $tenant);
+
+    $product = Product::factory()->create(['tenant_id' => $tenant->id]);
+    $warehouseA = Warehouse::factory()->create(['tenant_id' => $tenant->id]);
+    $warehouseB = Warehouse::factory()->create(['tenant_id' => $tenant->id]);
+
+    $stockService = app(StockService::class);
+    $stockService->recordMovement($product, $warehouseA, 10, StockMovementType::Received);
+    $stockService->recordMovement($product, $warehouseB, 7, StockMovementType::Received);
+
+    $response = $this->getJson('/api/v1/products')->assertOk();
+
+    expect($response->json('data.0.total_stock'))->toBe(17);
 });

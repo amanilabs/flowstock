@@ -16,13 +16,21 @@ class ProductController extends Controller
     use CachesTenantScopedLists;
 
     /** Requires the view-products permission. */
+    #[QueryParameter('search', description: 'Match against product name or SKU.', type: 'string')]
+    #[QueryParameter('category_id', description: 'Only return products in this category.', type: 'int')]
     #[QueryParameter('active_only', description: 'Only return active products.', type: 'bool', default: false)]
     #[QueryParameter('per_page', description: 'Items per page.', type: 'int', default: 15, example: 25)]
     public function index(Request $request)
     {
         $products = $this->rememberTenantList('products', $request, fn () => Product::query()
             ->with('category')
+            ->withSum('stock', 'quantity')
             ->when($request->boolean('active_only'), fn ($q) => $q->active())
+            ->when($request->filled('category_id'), fn ($q) => $q->where('category_id', $request->integer('category_id')))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = $request->string('search');
+                $q->where(fn ($q) => $q->where('name', 'ilike', "%{$search}%")->orWhere('sku', 'ilike', "%{$search}%"));
+            })
             ->paginate($request->integer('per_page', 15))
         );
 

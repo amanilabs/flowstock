@@ -15,7 +15,14 @@ export interface ProductInput {
   is_active?: boolean
 }
 
-export function useProducts(params: { page?: number; active_only?: boolean } = {}) {
+export interface ProductFilters {
+  page?: number
+  active_only?: boolean
+  search?: string
+  category_id?: number
+}
+
+export function useProducts(params: ProductFilters = {}) {
   return useQuery({
     queryKey: ['products', params],
     queryFn: () => api.get<PaginatedResponse<Product>>('/products', params),

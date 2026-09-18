@@ -19,6 +19,7 @@ export interface ProductCategory {
   name: string
   slug: string
   parent_id: number | null
+  product_count: number | null
   created_at: string
   updated_at: string
 }
@@ -36,6 +37,7 @@ export interface Product {
   margin: number
   margin_percentage: number
   reorder_point: number
+  total_stock: number | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -54,6 +56,8 @@ export interface Warehouse {
   contact_name: string | null
   contact_phone: string | null
   contact_email: string | null
+  product_count: number | null
+  total_stock: number | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -64,6 +68,20 @@ export interface ProductStock {
   product_id: number
   warehouse: Warehouse
   quantity: number
+  updated_at: string
+}
+
+export type InventoryStatus = 'out_of_stock' | 'low_stock' | 'in_stock'
+
+export interface InventoryRow {
+  id: number
+  product: { id: number; name: string; sku: string }
+  warehouse: Warehouse
+  quantity: number
+  reserved_quantity: number
+  available_quantity: number
+  reorder_point: number
+  status: InventoryStatus
   updated_at: string
 }
 
@@ -84,6 +102,7 @@ export interface StockMovement {
   quantity_change: number
   note: string | null
   user_id: number | null
+  user: { id: number; name: string } | null
   reference_type: string | null
   reference_id: number | null
   created_at: string
@@ -108,6 +127,8 @@ export interface Customer {
   shipping_postal_code: string | null
   shipping_country: string | null
   notes: string | null
+  order_count: number | null
+  total_spent: number | null
   created_at: string
   updated_at: string
 }
@@ -137,6 +158,7 @@ export interface Order {
   customer: Customer
   warehouse: Warehouse
   items?: OrderItem[]
+  items_count: number | null
   total_amount: string
   notes: string | null
   confirmed_at: string | null

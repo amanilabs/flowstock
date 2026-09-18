@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { MoreHorizontal, Plus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { useAuth } from '@/contexts/AuthContext'
 import { useCategories } from '@/hooks/queries/useCategories'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import {
   type ProductInput,
   useCreateProduct,
@@ -13,7 +15,18 @@ import {
   useUpdateProduct,
 } from '@/hooks/queries/useProducts'
 import { ApiError } from '@/lib/api'
+import { formatCurrency, isValidCurrencyInput } from '@/lib/utils'
 import type { Product, ProductCategory } from '@/types/api'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -51,21 +64,41 @@ const productSchema = z.object({
 type ProductFormValues = z.infer<typeof productSchema>
 
 export function ProductsPage() {
+  const { hasRole } = useAuth()
+  const canManage = hasRole('Admin', 'Manager')
+
   const [page, setPage] = useState(1)
+  const [searchInput, setSearchInput] = useState('')
+  const search = useDebouncedValue(searchInput, 300)
+  const [categoryId, setCategoryId] = useState<string>('all')
+  const [status, setStatus] = useState<'all' | 'active' | 'inactive'>('all')
+
   const [editing, setEditing] = useState<Product | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState<Product | null>(null)
 
-  const { data, isLoading } = useProducts({ page })
+  useEffect(() => setPage(1), [search, categoryId, status])
+
+  const { data, isLoading } = useProducts({
+    page,
+    search: search || undefined,
+    category_id: categoryId !== 'all' ? Number(categoryId) : undefined,
+    active_only: status === 'active' ? true : undefined,
+  })
   const { data: categoriesData } = useCategories({ page: 1 })
   const deleteProduct = useDeleteProduct()
 
-  async function handleDelete(product: Product) {
-    if (!confirm(`Delete "${product.name}"? This cannot be undone.`)) return
+  const visibleProducts = status === 'inactive' ? data?.data.filter((p) => !p.is_active) : data?.data
+
+  async function confirmDelete() {
+    if (!deleting) return
     try {
-      await deleteProduct.mutateAsync(product.id)
+      await deleteProduct.mutateAsync(deleting.id)
       toast.success('Product deleted')
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : 'Failed to delete product')
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -75,85 +108,127 @@ export function ProductsPage() {
         title="Products"
         description="Manage your catalog, pricing, and reorder points."
         action={
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setEditing(null)}>
-                <Plus className="size-4" />
-                New product
-              </Button>
-            </DialogTrigger>
-            <ProductFormDialog
-              product={editing}
-              categories={categoriesData?.data ?? []}
-              onSaved={() => setDialogOpen(false)}
-            />
-          </Dialog>
+          canManage && (
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setEditing(null)}>
+                  <Plus className="size-4" />
+                  New product
+                </Button>
+              </DialogTrigger>
+              <ProductFormDialog
+                product={editing}
+                categories={categoriesData?.data ?? []}
+                onSaved={() => setDialogOpen(false)}
+              />
+            </Dialog>
+          )
         }
       />
 
-      <div className="rounded-md border">
+      <div className="flex flex-wrap gap-3">
+        <Input
+          placeholder="Search by name or SKU…"
+          className="w-full sm:w-64"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+        <Select value={categoryId} onValueChange={setCategoryId}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {categoriesData?.data.map((category) => (
+              <SelectItem key={category.id} value={String(category.id)}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>SKU</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Cost</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Margin</TableHead>
+              <TableHead>Selling Price</TableHead>
+              <TableHead>Stock</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-10" />
+              {canManage && <TableHead className="w-10" />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-muted-foreground text-center">
+                <TableCell colSpan={7} className="text-muted-foreground text-center">
                   Loading…
                 </TableCell>
               </TableRow>
-            ) : data?.data.length === 0 ? (
+            ) : visibleProducts?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-muted-foreground text-center">
-                  No products yet.
+                <TableCell colSpan={7} className="text-muted-foreground text-center">
+                  No products match your filters.
                 </TableCell>
               </TableRow>
             ) : (
-              data?.data.map((product) => (
+              visibleProducts?.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.sku}</TableCell>
                   <TableCell>{product.category?.name ?? '—'}</TableCell>
-                  <TableCell>${product.cost_price}</TableCell>
-                  <TableCell>${product.selling_price}</TableCell>
-                  <TableCell>{product.margin_percentage}%</TableCell>
+                  <TableCell>${formatCurrency(product.selling_price)}</TableCell>
+                  <TableCell>
+                    {product.total_stock === null ? (
+                      '—'
+                    ) : (
+                      <Badge variant={product.total_stock <= product.reorder_point ? 'destructive' : 'secondary'}>
+                        {product.total_stock}
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={product.is_active ? 'default' : 'secondary'}>
                       {product.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setEditing(product)
-                            setDialogOpen(true)
-                          }}
-                        >
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem variant="destructive" onClick={() => handleDelete(product)}>
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  {canManage && (
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditing(product)
+                              setDialogOpen(true)
+                            }}
+                          >
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onClick={() => setDeleting(product)}>
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -162,6 +237,19 @@ export function ProductsPage() {
       </div>
 
       {data?.meta && <PaginationBar meta={data.meta} onPageChange={setPage} />}
+
+      <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleting?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -185,8 +273,8 @@ function ProductFormDialog({
       sku: product?.sku ?? '',
       category_id: product?.category ? String(product.category.id) : '',
       unit_of_measure: product?.unit_of_measure ?? 'pcs',
-      cost_price: product ? Number(product.cost_price) : 0,
-      selling_price: product ? Number(product.selling_price) : 0,
+      cost_price: product ? Math.round(Number(product.cost_price) * 100) / 100 : 0,
+      selling_price: product ? Math.round(Number(product.selling_price) * 100) / 100 : 0,
       reorder_point: product?.reorder_point ?? 0,
       description: product?.description ?? '',
     },
@@ -207,7 +295,13 @@ function ProductFormDialog({
       }
       onSaved()
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : 'Failed to save product')
+      if (error instanceof ApiError && error.errors) {
+        for (const [field, messages] of Object.entries(error.errors)) {
+          form.setError(field as keyof ProductFormValues, { message: messages[0] })
+        }
+      } else {
+        toast.error(error instanceof ApiError ? error.message : 'Failed to save product')
+      }
     }
   }
 
@@ -231,7 +325,7 @@ function ProductFormDialog({
               </FormItem>
             )}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
               name="sku"
@@ -283,7 +377,7 @@ function ProductFormDialog({
               </FormItem>
             )}
           />
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <FormField
               control={form.control}
               name="cost_price"
@@ -291,7 +385,15 @@ function ProductFormDialog({
                 <FormItem>
                   <FormLabel>Cost price</FormLabel>
                   <FormControl>
-                    <Input type="number" step="0.01" {...field} value={field.value as number} />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      {...field}
+                      value={field.value as number}
+                      onChange={(e) => {
+                        if (isValidCurrencyInput(e.target.value)) field.onChange(e)
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -304,7 +406,15 @@ function ProductFormDialog({
                 <FormItem>
                   <FormLabel>Selling price</FormLabel>
                   <FormControl>
-                    <Input type="number" step="0.01" {...field} value={field.value as number} />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      {...field}
+                      value={field.value as number}
+                      onChange={(e) => {
+                        if (isValidCurrencyInput(e.target.value)) field.onChange(e)
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
