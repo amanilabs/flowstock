@@ -22,7 +22,12 @@ export interface CustomerInput {
   notes?: string | null
 }
 
-export function useCustomers(params: { page?: number } = {}) {
+export interface CustomerFilters {
+  page?: number
+  search?: string
+}
+
+export function useCustomers(params: CustomerFilters = {}) {
   return useQuery({
     queryKey: ['customers', params],
     queryFn: () => api.get<PaginatedResponse<Customer>>('/customers', params),

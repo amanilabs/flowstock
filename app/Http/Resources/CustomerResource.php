@@ -28,6 +28,10 @@ class CustomerResource extends JsonResource
             'shipping_postal_code' => $this->shipping_postal_code,
             'shipping_country' => $this->shipping_country,
             'notes' => $this->notes,
+            // Only present when the query eager-loads them via withCount/withSum
+            // (the index listing) — null on show(), which doesn't need them.
+            'order_count' => $this->order_count ?? null,
+            'total_spent' => $this->total_spent !== null ? (float) $this->total_spent : null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
