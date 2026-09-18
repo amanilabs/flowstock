@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { OrderStatusBadge } from '@/components/StatusBadge'
+import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
 
 const STATUS_OPTIONS: (OrderStatus | '')[] = [
@@ -63,18 +64,21 @@ export function OrdersPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Orders</h1>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="size-4" />
-              New order
-            </Button>
-          </DialogTrigger>
-          <CreateOrderDialog onSaved={() => setDialogOpen(false)} />
-        </Dialog>
-      </div>
+      <PageHeader
+        title="Orders"
+        description="Track and progress orders through their full lifecycle."
+        action={
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="size-4" />
+                New order
+              </Button>
+            </DialogTrigger>
+            <CreateOrderDialog onSaved={() => setDialogOpen(false)} />
+          </Dialog>
+        }
+      />
 
       <Select
         value={status || 'all'}

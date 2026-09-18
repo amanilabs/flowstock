@@ -1,12 +1,18 @@
 import { useState } from 'react'
+import { Boxes, ClipboardList, ShieldCheck, TrendingUp } from 'lucide-react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { ApiError } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+
+const FEATURES = [
+  { icon: Boxes, text: 'Real-time stock across every warehouse' },
+  { icon: TrendingUp, text: 'Full order lifecycle, start to refund' },
+  { icon: ShieldCheck, text: 'Role-aware access, tenant by tenant' },
+]
 
 export function LoginPage() {
   const { isAuthenticated, login } = useAuth()
@@ -34,14 +40,50 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-xl">FlowStock</CardTitle>
-          <CardDescription>Sign in to the admin dashboard</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <div className="grid min-h-svh lg:grid-cols-2">
+      <div className="from-primary to-primary/70 relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br p-10 text-white lg:flex">
+        <div className="flex items-center gap-2">
+          <div className="flex size-8 items-center justify-center rounded-md bg-white/15">
+            <ClipboardList className="size-5" />
+          </div>
+          <span className="text-lg font-semibold">FlowStock</span>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <h2 className="text-3xl font-semibold text-balance">
+            Multi-tenant inventory & order management, in one dashboard.
+          </h2>
+          <ul className="flex flex-col gap-3">
+            {FEATURES.map((feature) => (
+              <li key={feature.text} className="flex items-center gap-3 text-white/90">
+                <feature.icon className="size-5 shrink-0" />
+                <span>{feature.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="text-sm text-white/70">Portfolio project — FlowStock backend + admin dashboard.</p>
+
+        <div className="bg-primary-foreground/10 absolute -top-24 -right-24 size-72 rounded-full blur-3xl" />
+        <div className="bg-primary-foreground/10 absolute -bottom-24 -left-12 size-72 rounded-full blur-3xl" />
+      </div>
+
+      <div className="flex items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 flex flex-col gap-1 lg:hidden">
+            <div className="flex items-center gap-2">
+              <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md">
+                <ClipboardList className="size-5" />
+              </div>
+              <span className="text-lg font-semibold">FlowStock</span>
+            </div>
+          </div>
+
+          <h1 className="text-2xl font-semibold">Welcome back</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Sign in to the admin dashboard</p>
+
+          <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -67,12 +109,17 @@ export function LoginPage() {
             <Button type="submit" disabled={isSubmitting} className="mt-2">
               {isSubmitting ? 'Signing in…' : 'Sign in'}
             </Button>
-            <p className="text-muted-foreground text-center text-xs">
-              Demo: admin@acme.test / manager@acme.test / staff@acme.test — password "password"
-            </p>
           </form>
-        </CardContent>
-      </Card>
+
+          <div className="bg-muted/50 mt-6 rounded-lg border p-3 text-center text-xs">
+            <p className="font-medium">Demo accounts</p>
+            <p className="text-muted-foreground mt-1">
+              admin@acme.test · manager@acme.test · staff@acme.test
+            </p>
+            <p className="text-muted-foreground">password: "password"</p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

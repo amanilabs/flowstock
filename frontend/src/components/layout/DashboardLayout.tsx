@@ -8,11 +8,11 @@ export function DashboardLayout() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-14 items-center gap-2 border-b px-4">
+        <header className="bg-background/80 sticky top-0 z-10 flex h-14 items-center gap-2 border-b px-4 backdrop-blur-sm">
           <SidebarTrigger />
           <Separator orientation="vertical" className="h-4" />
         </header>
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="bg-muted/20 flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
       </SidebarInset>

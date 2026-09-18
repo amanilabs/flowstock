@@ -31,6 +31,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
 
 const customerSchema = z.object({
@@ -62,18 +63,21 @@ export function CustomersPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Customers</h1>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEditing(null)}>
-              <Plus className="size-4" />
-              New customer
-            </Button>
-          </DialogTrigger>
-          <CustomerFormDialog customer={editing} onSaved={() => setDialogOpen(false)} />
-        </Dialog>
-      </div>
+      <PageHeader
+        title="Customers"
+        description="People and companies you sell to."
+        action={
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setEditing(null)}>
+                <Plus className="size-4" />
+                New customer
+              </Button>
+            </DialogTrigger>
+            <CustomerFormDialog customer={editing} onSaved={() => setDialogOpen(false)} />
+          </Dialog>
+        }
+      />
 
       <div className="rounded-md border">
         <Table>

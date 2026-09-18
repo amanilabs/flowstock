@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
+import { PageHeader } from '@/components/PageHeader'
 
 const MOVEMENT_TYPES: StockMovementType[] = [
   'received',
@@ -54,7 +55,7 @@ export function StockPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Stock</h1>
+      <PageHeader title="Stock" description="On-hand quantities per warehouse, with low-stock alerts." />
 
       <Card>
         <CardContent className="flex items-end gap-4">

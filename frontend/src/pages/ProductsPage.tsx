@@ -34,6 +34,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
 
 const productSchema = z.object({
@@ -70,22 +71,25 @@ export function ProductsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Products</h1>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEditing(null)}>
-              <Plus className="size-4" />
-              New product
-            </Button>
-          </DialogTrigger>
-          <ProductFormDialog
-            product={editing}
-            categories={categoriesData?.data ?? []}
-            onSaved={() => setDialogOpen(false)}
-          />
-        </Dialog>
-      </div>
+      <PageHeader
+        title="Products"
+        description="Manage your catalog, pricing, and reorder points."
+        action={
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setEditing(null)}>
+                <Plus className="size-4" />
+                New product
+              </Button>
+            </DialogTrigger>
+            <ProductFormDialog
+              product={editing}
+              categories={categoriesData?.data ?? []}
+              onSaved={() => setDialogOpen(false)}
+            />
+          </Dialog>
+        }
+      />
 
       <div className="rounded-md border">
         <Table>

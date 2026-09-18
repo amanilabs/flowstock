@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuditLogs } from '@/hooks/queries/useAuditLogs'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
 
 export function AuditLogsPage() {
@@ -21,7 +22,7 @@ export function AuditLogsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Audit Logs</h1>
+      <PageHeader title="Audit Logs" description="Every tracked change across your account, tenant-scoped." />
 
       <div className="flex flex-wrap gap-3">
         <Input
