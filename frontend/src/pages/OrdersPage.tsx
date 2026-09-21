@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus, Trash2 } from 'lucide-react'
-import { useFieldArray, useForm } from 'react-hook-form'
+import { type FieldPath, useFieldArray, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -11,7 +11,7 @@ import { useCreateOrder, useOrders } from '@/hooks/queries/useOrders'
 import { useProducts } from '@/hooks/queries/useProducts'
 import { useWarehouses } from '@/hooks/queries/useWarehouses'
 import { ApiError } from '@/lib/api'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, isValidCurrencyInput } from '@/lib/utils'
 import type { OrderStatus } from '@/types/api'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,6 +26,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Textarea } from '@/components/ui/textarea'
 import { OrderStatusBadge } from '@/components/StatusBadge'
 import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
@@ -50,9 +51,11 @@ const orderSchema = z.object({
       z.object({
         product_id: z.string().min(1, 'Required'),
         quantity: z.coerce.number().min(1),
+        unit_price: z.string().optional(),
       }),
     )
     .min(1, 'Add at least one item'),
+  notes: z.string().optional(),
 })
 
 type OrderFormValues = z.infer<typeof orderSchema>
@@ -138,8 +141,16 @@ export function OrdersPage() {
               data?.data.map((order) => (
                 <TableRow
                   key={order.id}
+                  role="button"
+                  tabIndex={0}
                   className="cursor-pointer"
                   onClick={() => navigate(`/orders/${order.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      navigate(`/orders/${order.id}`)
+                    }
+                  }}
                 >
                   <TableCell className="font-medium">{order.order_number}</TableCell>
                   <TableCell>{order.customer.name}</TableCell>
@@ -172,7 +183,8 @@ function CreateOrderDialog({ onSaved }: { onSaved: () => void }) {
     defaultValues: {
       customer_id: '',
       warehouse_id: '',
-      items: [{ product_id: '', quantity: 1 }],
+      items: [{ product_id: '', quantity: 1, unit_price: '' }],
+      notes: '',
     },
   })
 
@@ -186,24 +198,32 @@ function CreateOrderDialog({ onSaved }: { onSaved: () => void }) {
         items: values.items.map((item) => ({
           product_id: Number(item.product_id),
           quantity: item.quantity,
+          unit_price: item.unit_price ? Number(item.unit_price) : undefined,
         })),
+        notes: values.notes || undefined,
       })
       toast.success('Order created')
       form.reset()
       onSaved()
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : 'Failed to create order')
+      if (error instanceof ApiError && error.errors) {
+        for (const [field, messages] of Object.entries(error.errors)) {
+          form.setError(field as FieldPath<OrderFormValues>, { message: messages[0] })
+        }
+      } else {
+        toast.error(error instanceof ApiError ? error.message : 'Failed to create order')
+      }
     }
   }
 
   return (
-    <DialogContent className="max-w-lg">
+    <DialogContent className="max-w-xl">
       <DialogHeader>
         <DialogTitle>New order</DialogTitle>
       </DialogHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
               name="customer_id"
@@ -256,6 +276,9 @@ function CreateOrderDialog({ onSaved }: { onSaved: () => void }) {
 
           <div className="flex flex-col gap-2">
             <FormLabel>Items</FormLabel>
+            {form.formState.errors.items?.message && (
+              <p className="text-destructive text-sm">{form.formState.errors.items.message}</p>
+            )}
             {fields.map((item, index) => (
               <div key={item.id} className="flex items-end gap-2">
                 <FormField
@@ -293,10 +316,31 @@ function CreateOrderDialog({ onSaved }: { onSaved: () => void }) {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name={`items.${index}.unit_price`}
+                  render={({ field }) => (
+                    <FormItem className="w-28">
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Default price"
+                          {...field}
+                          onChange={(e) => {
+                            if (isValidCurrencyInput(e.target.value)) field.onChange(e)
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
+                  aria-label="Remove item"
                   disabled={fields.length === 1}
                   onClick={() => remove(index)}
                 >
@@ -308,12 +352,26 @@ function CreateOrderDialog({ onSaved }: { onSaved: () => void }) {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => append({ product_id: '', quantity: 1 })}
+              onClick={() => append({ product_id: '', quantity: 1, unit_price: '' })}
             >
               <Plus className="size-4" />
               Add item
             </Button>
           </div>
+
+          <FormField
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Notes</FormLabel>
+                <FormControl>
+                  <Textarea placeholder="Delivery instructions, internal notes…" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <DialogFooter>
             <Button type="submit" disabled={form.formState.isSubmitting}>
