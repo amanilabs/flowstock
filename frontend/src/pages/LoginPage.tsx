@@ -7,11 +7,18 @@ import { ApiError } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 const FEATURES = [
   { icon: Boxes, text: 'Real-time stock across every warehouse' },
   { icon: TrendingUp, text: 'Full order lifecycle, start to refund' },
   { icon: ShieldCheck, text: 'Role-aware access, tenant by tenant' },
+]
+
+const DEMO_ACCOUNTS = [
+  { tenant: 'Acme Supply Co.', domain: 'acme.test' },
+  { tenant: 'Northstar Office Supplies', domain: 'northstar.test' },
+  { tenant: 'Urban Retail GmbH', domain: 'urbanretail.test' },
 ]
 
 export function LoginPage() {
@@ -111,12 +118,44 @@ export function LoginPage() {
             </Button>
           </form>
 
-          <div className="bg-muted/50 mt-6 rounded-lg border p-3 text-center text-xs">
-            <p className="font-medium">Demo accounts</p>
-            <p className="text-muted-foreground mt-1">
-              admin@acme.test · manager@acme.test · staff@acme.test
+          <div className="bg-muted/50 mt-6 rounded-lg border p-3">
+            <p className="text-center text-xs font-medium">Demo accounts — password is "password" for all</p>
+            <p className="text-muted-foreground mt-1 text-center text-xs">
+              Click a role to fill the sign-in form
             </p>
-            <p className="text-muted-foreground">password: "password"</p>
+            <div className="mt-2 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="h-7 text-xs">Tenant</TableHead>
+                    <TableHead className="h-7 text-xs">Admin</TableHead>
+                    <TableHead className="h-7 text-xs">Manager</TableHead>
+                    <TableHead className="h-7 text-xs">Staff</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {DEMO_ACCOUNTS.map((account) => (
+                    <TableRow key={account.domain}>
+                      <TableCell className="text-xs font-medium whitespace-nowrap">{account.tenant}</TableCell>
+                      {(['admin', 'manager', 'staff'] as const).map((role) => (
+                        <TableCell key={role} className="p-1 text-xs">
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                            onClick={() => {
+                              setEmail(`${role}@${account.domain}`)
+                              setPassword('password')
+                            }}
+                          >
+                            {role}
+                          </button>
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </div>
       </div>
