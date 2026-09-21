@@ -26,13 +26,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 import { OrderStatusBadge } from '@/components/StatusBadge'
@@ -147,7 +140,7 @@ export function OrderDetailPage() {
         <OrderStatusBadge status={order.status} />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Customer</CardTitle>
@@ -170,7 +163,7 @@ export function OrderDetailPage() {
         </Card>
       </div>
 
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -235,23 +228,31 @@ export function OrderDetailPage() {
         </div>
       )}
 
-      <Dialog open={reasonDialog !== null} onOpenChange={(open) => !open && setReasonDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{reasonDialog === 'cancel' ? 'Cancel order' : 'Refund order'}</DialogTitle>
-          </DialogHeader>
+      <AlertDialog open={reasonDialog !== null} onOpenChange={(open) => !open && setReasonDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {reasonDialog === 'cancel' ? 'Cancel this order?' : 'Refund this order?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {reasonDialog === 'cancel'
+                ? 'This releases any reserved stock. This cannot be undone.'
+                : 'This marks the order refunded. This cannot be undone.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
           <Textarea
             placeholder="Reason (optional)"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />
-          <DialogFooter>
-            <Button variant="destructive" onClick={submitReason}>
-              Confirm {reasonDialog}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={submitReason} variant="destructive">
+              {reasonDialog === 'cancel' ? 'Cancel order' : 'Refund order'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={simpleAction !== null} onOpenChange={(open) => !open && setSimpleAction(null)}>
         <AlertDialogContent>

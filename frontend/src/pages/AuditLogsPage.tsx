@@ -205,7 +205,19 @@ export function AuditLogsPage() {
               />
             ) : (
               data?.data.map((log) => (
-                <TableRow key={log.id} className="cursor-pointer" onClick={() => setViewing(log)}>
+                <TableRow
+                  key={log.id}
+                  role="button"
+                  tabIndex={0}
+                  className="cursor-pointer"
+                  onClick={() => setViewing(log)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setViewing(log)
+                    }
+                  }}
+                >
                   <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                     {new Date(log.created_at).toLocaleString()}
                   </TableCell>

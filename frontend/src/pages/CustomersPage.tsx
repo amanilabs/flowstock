@@ -174,11 +174,11 @@ export function CustomersPage() {
                   <TableCell>
                     <Badge variant="secondary">{customer.order_count ?? 0}</Badge>
                   </TableCell>
-                  <TableCell>{formatCurrency(customer.total_spent ?? 0)}</TableCell>
+                  <TableCell>${formatCurrency(customer.total_spent ?? 0)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" aria-label={`Actions for ${customer.name}`}>
                           <MoreHorizontal className="size-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -262,7 +262,7 @@ function CustomerDetailSheet({ customer, onClose }: { customer: Customer | null;
             </div>
             <div>
               <div className="text-muted-foreground">Total spent</div>
-              <div>{formatCurrency(customer?.total_spent ?? 0)}</div>
+              <div>${formatCurrency(customer?.total_spent ?? 0)}</div>
             </div>
           </div>
 
@@ -304,7 +304,7 @@ function CustomerDetailSheet({ customer, onClose }: { customer: Customer | null;
                   </div>
                   <div className="flex items-center gap-2">
                     <OrderStatusBadge status={order.status} />
-                    <span>{formatCurrency(order.total_amount)}</span>
+                    <span>${formatCurrency(order.total_amount)}</span>
                   </div>
                 </div>
               ))}

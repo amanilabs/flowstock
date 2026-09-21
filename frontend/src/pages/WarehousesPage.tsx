@@ -185,7 +185,7 @@ export function WarehousesPage() {
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" aria-label={`Actions for ${warehouse.name}`}>
                             <MoreHorizontal className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>

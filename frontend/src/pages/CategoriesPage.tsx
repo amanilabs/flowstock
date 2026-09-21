@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/PageHeader'
 import { PaginationBar } from '@/components/PaginationBar'
@@ -51,6 +52,7 @@ import { TableStateRow } from '@/components/TableStateRow'
 const categorySchema = z.object({
   name: z.string().min(1, 'Required'),
   slug: z.string().min(1, 'Required'),
+  parent_id: z.string().optional(),
 })
 
 type CategoryFormValues = z.infer<typeof categorySchema>
@@ -70,7 +72,10 @@ export function CategoriesPage() {
   useEffect(() => setPage(1), [search])
 
   const { data, isLoading, isError, refetch } = useCategories({ page, search: search || undefined })
+  const { data: allCategoriesData } = useCategories({ page: 1 })
   const deleteCategory = useDeleteCategory()
+
+  const categoryById = new Map((allCategoriesData?.data ?? []).map((c) => [c.id, c]))
 
   async function confirmDelete() {
     if (!deleting) return
@@ -98,7 +103,11 @@ export function CategoriesPage() {
                   New category
                 </Button>
               </DialogTrigger>
-              <CategoryFormDialog category={editing} onSaved={() => setDialogOpen(false)} />
+              <CategoryFormDialog
+                category={editing}
+                categories={allCategoriesData?.data ?? []}
+                onSaved={() => setDialogOpen(false)}
+              />
             </Dialog>
           )
         }
@@ -117,6 +126,7 @@ export function CategoriesPage() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Slug</TableHead>
+              <TableHead>Parent</TableHead>
               <TableHead>Products</TableHead>
               {canManage && <TableHead className="w-10" />}
             </TableRow>
@@ -124,7 +134,7 @@ export function CategoriesPage() {
           <TableBody>
             {isLoading || isError || data?.data.length === 0 ? (
               <TableStateRow
-                colSpan={4}
+                colSpan={5}
                 isLoading={isLoading}
                 isError={isError}
                 isEmpty={data?.data.length === 0}
@@ -137,13 +147,16 @@ export function CategoriesPage() {
                   <TableCell className="font-medium">{category.name}</TableCell>
                   <TableCell>{category.slug}</TableCell>
                   <TableCell>
+                    {category.parent_id ? (categoryById.get(category.parent_id)?.name ?? '—') : '—'}
+                  </TableCell>
+                  <TableCell>
                     <Badge variant="secondary">{category.product_count ?? 0}</Badge>
                   </TableCell>
                   {canManage && (
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" aria-label={`Actions for ${category.name}`}>
                             <MoreHorizontal className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -194,9 +207,11 @@ export function CategoriesPage() {
 
 function CategoryFormDialog({
   category,
+  categories,
   onSaved,
 }: {
   category: ProductCategory | null
+  categories: ProductCategory[]
   onSaved: () => void
 }) {
   const createCategory = useCreateCategory()
@@ -204,16 +219,27 @@ function CategoryFormDialog({
 
   const form = useForm({
     resolver: zodResolver(categorySchema),
-    values: { name: category?.name ?? '', slug: category?.slug ?? '' },
+    values: {
+      name: category?.name ?? '',
+      slug: category?.slug ?? '',
+      parent_id: category?.parent_id ? String(category.parent_id) : '',
+    },
   })
 
-  async function onSubmit(values: CategoryInput) {
+  // A category can't be its own parent.
+  const parentOptions = categories.filter((c) => c.id !== category?.id)
+
+  async function onSubmit(values: CategoryFormValues) {
+    const input: CategoryInput = {
+      ...values,
+      parent_id: values.parent_id ? Number(values.parent_id) : null,
+    }
     try {
       if (category) {
-        await updateCategory.mutateAsync({ id: category.id, ...values })
+        await updateCategory.mutateAsync({ id: category.id, ...input })
         toast.success('Category updated')
       } else {
-        await createCategory.mutateAsync(values)
+        await createCategory.mutateAsync(input)
         toast.success('Category created')
       }
       onSaved()
@@ -272,6 +298,34 @@ function CategoryFormDialog({
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="parent_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Parent category</FormLabel>
+                <Select
+                  onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}
+                  value={field.value || 'none'}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">No parent</SelectItem>
+                    {parentOptions.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

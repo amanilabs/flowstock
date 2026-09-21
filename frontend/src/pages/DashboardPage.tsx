@@ -67,7 +67,7 @@ export function DashboardPage() {
         <CardHeader>
           <CardTitle>Recent orders</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -81,8 +81,16 @@ export function DashboardPage() {
               {orders?.data.slice(0, 5).map((order) => (
                 <TableRow
                   key={order.id}
+                  role="button"
+                  tabIndex={0}
                   className="cursor-pointer"
                   onClick={() => navigate(`/orders/${order.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      navigate(`/orders/${order.id}`)
+                    }
+                  }}
                 >
                   <TableCell className="font-medium">{order.order_number}</TableCell>
                   <TableCell>{order.customer.name}</TableCell>
