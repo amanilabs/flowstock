@@ -31,7 +31,6 @@ class UpdateProductRequest extends FormRequest
             'unit_of_measure' => ['sometimes', 'required', 'string', 'max:50'],
             'cost_price' => ['sometimes', 'required', 'numeric', 'min:0'],
             'selling_price' => ['sometimes', 'required', 'numeric', 'min:0'],
-            'reorder_point' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

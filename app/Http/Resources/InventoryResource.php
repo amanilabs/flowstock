@@ -10,7 +10,7 @@ class InventoryResource extends JsonResource
     public function toArray(Request $request): array
     {
         $reserved = $this->activeReservedQuantity();
-        $reorderPoint = $this->product->reorder_point;
+        $reorderPoint = $this->reorder_point;
 
         return [
             'id' => $this->id,

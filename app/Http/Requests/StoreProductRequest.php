@@ -29,7 +29,6 @@ class StoreProductRequest extends FormRequest
             'unit_of_measure' => ['required', 'string', 'max:50'],
             'cost_price' => ['required', 'numeric', 'min:0'],
             'selling_price' => ['required', 'numeric', 'min:0'],
-            'reorder_point' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

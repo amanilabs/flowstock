@@ -13,6 +13,7 @@ class LowStockNotification extends Notification
         private readonly Product $product,
         private readonly Warehouse $warehouse,
         private readonly int $newQuantity,
+        private readonly int $reorderPoint,
     ) {}
 
     public function via(object $notifiable): array
@@ -26,6 +27,6 @@ class LowStockNotification extends Notification
             ->subject("Low stock: {$this->product->name}")
             ->greeting("Hi {$notifiable->name},")
             ->line("{$this->product->name} (SKU {$this->product->sku}) at {$this->warehouse->name} has dropped to {$this->newQuantity} units.")
-            ->line("Reorder point: {$this->product->reorder_point}.");
+            ->line("Reorder point: {$this->reorderPoint}.");
     }
 }

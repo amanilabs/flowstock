@@ -54,11 +54,11 @@ import { TableStateRow } from '@/components/TableStateRow'
 const productSchema = z.object({
   name: z.string().min(1, 'Required'),
   sku: z.string().min(1, 'Required'),
+  barcode: z.string().optional(),
   category_id: z.string(),
   unit_of_measure: z.string().min(1, 'Required'),
   cost_price: z.coerce.number().min(0),
   selling_price: z.coerce.number().min(0),
-  reorder_point: z.coerce.number().min(0),
   description: z.string().optional(),
   is_active: z.boolean(),
 })
@@ -194,9 +194,7 @@ export function ProductsPage() {
                     {product.total_stock === null ? (
                       '—'
                     ) : (
-                      <Badge variant={product.total_stock <= product.reorder_point ? 'destructive' : 'secondary'}>
-                        {product.total_stock}
-                      </Badge>
+                      <Badge variant="secondary">{product.total_stock}</Badge>
                     )}
                   </TableCell>
                   <TableCell>
@@ -208,7 +206,7 @@ export function ProductsPage() {
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" aria-label={`Actions for ${product.name}`}>
                             <MoreHorizontal className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -270,11 +268,11 @@ function ProductFormDialog({
     values: {
       name: product?.name ?? '',
       sku: product?.sku ?? '',
+      barcode: product?.barcode ?? '',
       category_id: product?.category ? String(product.category.id) : '',
       unit_of_measure: product?.unit_of_measure ?? 'pcs',
       cost_price: product ? Math.round(Number(product.cost_price) * 100) / 100 : 0,
       selling_price: product ? Math.round(Number(product.selling_price) * 100) / 100 : 0,
-      reorder_point: product?.reorder_point ?? 0,
       description: product?.description ?? '',
       is_active: product?.is_active ?? true,
     },
@@ -355,6 +353,19 @@ function ProductFormDialog({
           </div>
           <FormField
             control={form.control}
+            name="barcode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Barcode</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="category_id"
             render={({ field }) => (
               <FormItem>
@@ -377,7 +388,7 @@ function ProductFormDialog({
               </FormItem>
             )}
           />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
               name="cost_price"
@@ -415,19 +426,6 @@ function ProductFormDialog({
                         if (isValidCurrencyInput(e.target.value)) field.onChange(e)
                       }}
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="reorder_point"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Reorder point</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} value={field.value as number} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

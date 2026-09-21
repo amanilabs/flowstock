@@ -63,8 +63,8 @@ class StockService
 
             // Only fire on the actual crossing — not on every movement while
             // already below the threshold, and never on a restock.
-            if ($oldQuantity > $product->reorder_point && $newQuantity <= $product->reorder_point) {
-                event(new LowStockDetected($product, $warehouse, $product->tenant_id, $oldQuantity, $newQuantity));
+            if ($oldQuantity > $stock->reorder_point && $newQuantity <= $stock->reorder_point) {
+                event(new LowStockDetected($product, $warehouse, $product->tenant_id, $oldQuantity, $newQuantity, $stock->reorder_point));
             }
 
             return $movement;
@@ -104,5 +104,21 @@ class StockService
         }
 
         return $query()->lockForUpdate()->firstOrFail();
+    }
+
+    /**
+     * Set the reorder point for a single product/warehouse pair, creating
+     * the product_stock row (quantity 0) if nothing has ever been stocked
+     * there yet. This is a settings change, not a movement — no
+     * StockMovement row, no LowStockDetected event.
+     */
+    public function setReorderPoint(Product $product, Warehouse $warehouse, int $reorderPoint): ProductStock
+    {
+        return DB::transaction(function () use ($product, $warehouse, $reorderPoint) {
+            $stock = $this->lockStockRow($product, $warehouse);
+            $stock->update(['reorder_point' => $reorderPoint]);
+
+            return $stock;
+        });
     }
 }

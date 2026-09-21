@@ -56,3 +56,17 @@ export function useAdjustStock(productId: number) {
     },
   })
 }
+
+export function useUpdateReorderPoint(productId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ warehouseId, reorderPoint }: { warehouseId: number; reorderPoint: number }) =>
+      api.put<{ data: ProductStock }>(`/products/${productId}/stock/${warehouseId}`, {
+        reorder_point: reorderPoint,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stock', productId] })
+      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+    },
+  })
+}

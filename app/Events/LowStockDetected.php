@@ -18,5 +18,6 @@ class LowStockDetected implements ShouldDispatchAfterCommit
         public readonly int $tenantId,
         public readonly int $oldQuantity,
         public readonly int $newQuantity,
+        public readonly int $reorderPoint,
     ) {}
 }

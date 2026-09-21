@@ -21,7 +21,6 @@ class ProductResource extends JsonResource
             'selling_price' => $this->selling_price,
             'margin' => $this->margin,
             'margin_percentage' => $this->marginPercentage,
-            'reorder_point' => $this->reorder_point,
             // Only present when the query eager-loads it via withSum('stock', 'quantity')
             // (the index listing) — null on show(), which doesn't need it.
             'total_stock' => $this->stock_sum_quantity !== null ? (int) $this->stock_sum_quantity : null,

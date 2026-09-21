@@ -26,7 +26,6 @@ it('invalidates the cached product list after create, update, and delete', funct
         'unit_of_measure' => 'each',
         'selling_price' => 10,
         'cost_price' => 5,
-        'reorder_point' => 0,
     ])->assertCreated();
 
     $this->getJson('/api/v1/products')->assertOk()->assertJsonCount(2, 'data');
@@ -94,7 +93,6 @@ it('never leaks one tenant\'s cache invalidation into another tenant\'s list', f
         'unit_of_measure' => 'each',
         'selling_price' => 10,
         'cost_price' => 5,
-        'reorder_point' => 0,
     ])->assertCreated();
 
     actingAsRole('Admin', $tenantB);

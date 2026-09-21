@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Enums\StockMovementType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AdjustStockRequest;
+use App\Http\Requests\UpdateStockSettingsRequest;
 use App\Http\Resources\InventoryResource;
 use App\Http\Resources\ProductStockResource;
 use App\Http\Resources\StockMovementResource;
@@ -45,19 +46,27 @@ class StockController extends Controller
     public function inventory(Request $request)
     {
         $rows = ProductStock::query()
-            ->join('products', 'products.id', '=', 'product_stock.product_id')
+            // A raw join bypasses Eloquent's soft-delete scope on products —
+            // exclude deleted ones explicitly, or a soft-deleted product's
+            // leftover stock row 500s here (product relation resolves null).
+            ->join('products', fn ($join) => $join->on('products.id', '=', 'product_stock.product_id')->whereNull('products.deleted_at'))
             ->select('product_stock.*')
             ->with(['product.category', 'warehouse'])
             ->when($request->filled('warehouse_id'), fn ($q) => $q->where('product_stock.warehouse_id', $request->integer('warehouse_id')))
             ->when($request->filled('product_id'), fn ($q) => $q->where('product_stock.product_id', $request->integer('product_id')))
             ->when($request->filled('category_id'), fn ($q) => $q->where('products.category_id', $request->integer('category_id')))
-            ->when($request->boolean('low_stock'), fn ($q) => $q->whereColumn('product_stock.quantity', '<=', 'products.reorder_point'))
+            ->when($request->boolean('low_stock'), fn ($q) => $q->whereColumn('product_stock.quantity', '<=', 'product_stock.reorder_point'))
             ->when($request->filled('search'), function ($q) use ($request) {
                 $search = $request->string('search');
                 $q->where(fn ($q) => $q
                     ->where('products.name', 'ilike', "%{$search}%")
                     ->orWhere('products.sku', 'ilike', "%{$search}%"));
             })
+            // Grouped by product in the frontend table (rowspan across a
+            // product's warehouses) — that only looks right if same-product
+            // rows are adjacent, hence this explicit order.
+            ->orderBy('products.name')
+            ->orderBy('product_stock.warehouse_id')
             ->paginate($request->integer('per_page', 15));
 
         return InventoryResource::collection($rows);
@@ -94,5 +103,21 @@ class StockController extends Controller
         );
 
         return (new StockMovementResource($movement))->response()->setStatusCode(201);
+    }
+
+    /**
+     * Set the reorder point for a product at a specific warehouse — a
+     * settings change, not a stock movement. Requires the adjust-stock
+     * permission.
+     */
+    public function updateSettings(UpdateStockSettingsRequest $request, Product $product, Warehouse $warehouse)
+    {
+        $stock = $this->stockService->setReorderPoint(
+            $product,
+            $warehouse,
+            $request->validated('reorder_point'),
+        );
+
+        return new ProductStockResource($stock->load('warehouse'));
     }
 }

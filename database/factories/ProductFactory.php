@@ -24,7 +24,6 @@ class ProductFactory extends Factory
             'unit_of_measure' => 'pcs',
             'cost_price' => $cost,
             'selling_price' => $cost * fake()->randomFloat(2, 1.2, 2.5),
-            'reorder_point' => fake()->numberBetween(0, 50),
             'is_active' => true,
         ];
     }

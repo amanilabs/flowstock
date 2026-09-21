@@ -35,7 +35,7 @@ class NotifyLowStock implements ShouldQueue
 
         Notification::send(
             $recipients,
-            new LowStockNotification($event->product, $event->warehouse, $event->newQuantity)
+            new LowStockNotification($event->product, $event->warehouse, $event->newQuantity, $event->reorderPoint)
         );
     }
 }

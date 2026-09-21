@@ -11,7 +11,6 @@ export interface ProductInput {
   unit_of_measure: string
   cost_price: number
   selling_price: number
-  reorder_point?: number
   is_active?: boolean
 }
 

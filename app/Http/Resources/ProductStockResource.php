@@ -14,6 +14,7 @@ class ProductStockResource extends JsonResource
             'product_id' => $this->product_id,
             'warehouse' => new WarehouseResource($this->whenLoaded('warehouse')),
             'quantity' => $this->quantity,
+            'reorder_point' => $this->reorder_point,
             'updated_at' => $this->updated_at,
         ];
     }

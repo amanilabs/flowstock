@@ -16,12 +16,13 @@ class ProductStock extends Model
 
     protected $table = 'product_stock';
 
-    protected $fillable = ['tenant_id', 'product_id', 'warehouse_id', 'quantity'];
+    protected $fillable = ['tenant_id', 'product_id', 'warehouse_id', 'quantity', 'reorder_point'];
 
     protected function casts(): array
     {
         return [
             'quantity' => 'integer',
+            'reorder_point' => 'integer',
         ];
     }
 

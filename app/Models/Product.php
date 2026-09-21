@@ -30,7 +30,6 @@ class Product extends Model
         'unit_of_measure',
         'cost_price',
         'selling_price',
-        'reorder_point',
         'is_active',
     ];
 
@@ -56,7 +55,7 @@ class Product extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['sku', 'name', 'description', 'barcode', 'unit_of_measure', 'cost_price', 'selling_price', 'reorder_point', 'is_active', 'category_id'])
+            ->logOnly(['sku', 'name', 'description', 'barcode', 'unit_of_measure', 'cost_price', 'selling_price', 'is_active', 'category_id'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
     }

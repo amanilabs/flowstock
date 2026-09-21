@@ -18,6 +18,7 @@ dataset('permission_boundaries', function () {
         'Admin can create warehouses' => ['Admin', 'POST', fn () => '/api/v1/warehouses', 201],
         'Staff cannot manage categories' => ['Staff', 'POST', fn () => '/api/v1/product-categories', 403],
         'Staff can adjust stock' => ['Staff', 'POST', fn (Product $p, Warehouse $w) => "/api/v1/products/{$p->id}/stock/adjust", 201],
+        'Staff can set a warehouse reorder point' => ['Staff', 'PUT', fn (Product $p, Warehouse $w) => "/api/v1/products/{$p->id}/stock/{$w->id}", 200],
     ];
 });
 
@@ -42,6 +43,9 @@ it('enforces role/endpoint permission boundaries', function (string $role, strin
         ],
         str_contains($url, '/stock/adjust') => [
             'warehouse_id' => $warehouse->id, 'quantity_change' => 10, 'type' => 'received',
+        ],
+        $method === 'PUT' && str_contains($url, '/stock/') => [
+            'reorder_point' => 15,
         ],
         default => [],
     };

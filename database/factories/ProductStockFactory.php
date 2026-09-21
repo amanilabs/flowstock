@@ -20,6 +20,7 @@ class ProductStockFactory extends Factory
             'product_id' => Product::factory(),
             'warehouse_id' => Warehouse::factory(),
             'quantity' => fake()->numberBetween(0, 200),
+            'reorder_point' => fake()->numberBetween(0, 50),
         ];
     }
 

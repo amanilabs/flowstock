@@ -45,6 +45,9 @@ Route::prefix('v1')->group(function () {
             Route::post('products/{product}/stock/adjust', [StockController::class, 'adjust'])
                 ->middleware('can:adjust-stock');
 
+            Route::put('products/{product}/stock/{warehouse}', [StockController::class, 'updateSettings'])
+                ->middleware('can:adjust-stock');
+
             Route::apiResource('customers', CustomerController::class)
                 ->middlewareFor(['index', 'show'], 'can:view-customers')
                 ->middlewareFor(['store', 'update', 'destroy'], 'can:manage-customers');

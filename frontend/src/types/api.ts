@@ -5,6 +5,7 @@ export interface User {
   name: string
   email: string
   tenant_id: number
+  tenant_name: string
   roles: Role[]
 }
 
@@ -36,7 +37,6 @@ export interface Product {
   selling_price: string
   margin: number
   margin_percentage: number
-  reorder_point: number
   total_stock: number | null
   is_active: boolean
   created_at: string
@@ -68,6 +68,7 @@ export interface ProductStock {
   product_id: number
   warehouse: Warehouse
   quantity: number
+  reorder_point: number
   updated_at: string
 }
 

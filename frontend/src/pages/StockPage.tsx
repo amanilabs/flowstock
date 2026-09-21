@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { History, MoreHorizontal, PackagePlus } from 'lucide-react'
+import { History, MoreHorizontal, PackagePlus, SlidersHorizontal } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { useCategories } from '@/hooks/queries/useCategories'
 import { useProducts } from '@/hooks/queries/useProducts'
-import { useAdjustStock, useInventory, useStockMovements } from '@/hooks/queries/useStock'
+import { useAdjustStock, useInventory, useStockMovements, useUpdateReorderPoint } from '@/hooks/queries/useStock'
 import { useWarehouses } from '@/hooks/queries/useWarehouses'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { ApiError } from '@/lib/api'
@@ -42,6 +42,25 @@ const STATUS_LABEL: Record<InventoryStatus, string> = {
   out_of_stock: 'Out of stock',
 }
 
+/**
+ * Rows are grouped by product for display (Product/SKU cells span every
+ * warehouse row for that product) — this only looks right because the API
+ * orders rows by product, keeping a product's rows adjacent. Returns, per
+ * row index, the rowSpan to render (0 means "this row is a continuation,
+ * don't render the Product/SKU cells at all").
+ */
+function computeProductRowSpans(rows: InventoryRow[]): number[] {
+  const spans = new Array(rows.length).fill(0)
+  let i = 0
+  while (i < rows.length) {
+    let j = i + 1
+    while (j < rows.length && rows[j].product.id === rows[i].product.id) j++
+    spans[i] = j - i
+    i = j
+  }
+  return spans
+}
+
 function InventoryStatusBadge({ status }: { status: InventoryStatus }) {
   if (status === 'out_of_stock') return <Badge variant="destructive">{STATUS_LABEL[status]}</Badge>
   if (status === 'low_stock') {
@@ -65,6 +84,7 @@ export function StockPage() {
 
   const [adjusting, setAdjusting] = useState<InventoryRow | null>(null)
   const [history, setHistory] = useState<InventoryRow | null>(null)
+  const [editingReorderPoint, setEditingReorderPoint] = useState<InventoryRow | null>(null)
 
   useEffect(() => setPage(1), [search, warehouseId, productId, categoryId, lowStockOnly])
 
@@ -79,6 +99,8 @@ export function StockPage() {
   const { data: warehousesData } = useWarehouses({ page: 1, active_only: true })
   const { data: productsData } = useProducts({ page: 1, active_only: true })
   const { data: categoriesData } = useCategories({ page: 1 })
+
+  const productRowSpans = computeProductRowSpans(data?.data ?? [])
 
   return (
     <div className="flex flex-col gap-4">
@@ -167,13 +189,21 @@ export function StockPage() {
                 onRetry={refetch}
               />
             ) : (
-              data?.data.map((row) => (
+              data?.data.map((row, index) => (
                 <TableRow
                   key={row.id}
                   className={cn(row.status === 'out_of_stock' && 'bg-destructive/5')}
                 >
-                  <TableCell className="font-medium">{row.product.name}</TableCell>
-                  <TableCell>{row.product.sku}</TableCell>
+                  {productRowSpans[index] > 0 && (
+                    <>
+                      <TableCell className="font-medium align-top" rowSpan={productRowSpans[index]}>
+                        {row.product.name}
+                      </TableCell>
+                      <TableCell className="align-top" rowSpan={productRowSpans[index]}>
+                        {row.product.sku}
+                      </TableCell>
+                    </>
+                  )}
                   <TableCell>{row.warehouse.name}</TableCell>
                   <TableCell>{row.quantity}</TableCell>
                   <TableCell>{row.reserved_quantity}</TableCell>
@@ -185,7 +215,7 @@ export function StockPage() {
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" aria-label={`Actions for ${row.product.name}`}>
                           <MoreHorizontal className="size-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -197,6 +227,10 @@ export function StockPage() {
                         <DropdownMenuItem onClick={() => setHistory(row)}>
                           <History className="size-4" />
                           View history
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditingReorderPoint(row)}>
+                          <SlidersHorizontal className="size-4" />
+                          Edit reorder point
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -217,6 +251,12 @@ export function StockPage() {
       <Dialog open={history !== null} onOpenChange={(open) => !open && setHistory(null)}>
         {history && <StockHistoryDialog row={history} />}
       </Dialog>
+
+      <Dialog open={editingReorderPoint !== null} onOpenChange={(open) => !open && setEditingReorderPoint(null)}>
+        {editingReorderPoint && (
+          <ReorderPointDialog row={editingReorderPoint} onSaved={() => setEditingReorderPoint(null)} />
+        )}
+      </Dialog>
     </div>
   )
 }
@@ -228,6 +268,14 @@ const adjustSchema = z.object({
 })
 
 type AdjustFormValues = z.infer<typeof adjustSchema>
+
+// The backend validates quantity_change (a computed value), not the
+// direction/quantity fields the form actually shows — map its errors back
+// onto the field the user can edit.
+const ADJUST_FIELD_MAP: Partial<Record<string, keyof AdjustFormValues>> = {
+  quantity_change: 'quantity',
+  note: 'note',
+}
 
 function AdjustStockDialog({ row, onSaved }: { row: InventoryRow; onSaved: () => void }) {
   const adjustStock = useAdjustStock(row.product.id)
@@ -248,7 +296,19 @@ function AdjustStockDialog({ row, onSaved }: { row: InventoryRow; onSaved: () =>
       toast.success('Stock adjusted')
       onSaved()
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : 'Failed to adjust stock')
+      if (error instanceof ApiError && error.errors) {
+        let mappedAny = false
+        for (const [field, messages] of Object.entries(error.errors)) {
+          const formField = ADJUST_FIELD_MAP[field]
+          if (formField) {
+            form.setError(formField, { message: messages[0] })
+            mappedAny = true
+          }
+        }
+        if (!mappedAny) toast.error(error.message)
+      } else {
+        toast.error(error instanceof ApiError ? error.message : 'Failed to adjust stock')
+      }
     }
   }
 
@@ -371,6 +431,71 @@ function StockHistoryDialog({ row }: { row: InventoryRow }) {
           </TableBody>
         </Table>
       </div>
+    </DialogContent>
+  )
+}
+
+const reorderPointSchema = z.object({
+  reorder_point: z.coerce.number().int().min(0, 'Must be 0 or more'),
+})
+
+type ReorderPointFormValues = z.infer<typeof reorderPointSchema>
+
+function ReorderPointDialog({ row, onSaved }: { row: InventoryRow; onSaved: () => void }) {
+  const updateReorderPoint = useUpdateReorderPoint(row.product.id)
+
+  const form = useForm({
+    resolver: zodResolver(reorderPointSchema),
+    defaultValues: { reorder_point: row.reorder_point },
+  })
+
+  async function onSubmit(values: ReorderPointFormValues) {
+    try {
+      await updateReorderPoint.mutateAsync({
+        warehouseId: row.warehouse.id,
+        reorderPoint: values.reorder_point,
+      })
+      toast.success('Reorder point updated')
+      onSaved()
+    } catch (error) {
+      if (error instanceof ApiError && error.errors) {
+        for (const [field, messages] of Object.entries(error.errors)) {
+          form.setError(field as keyof ReorderPointFormValues, { message: messages[0] })
+        }
+      } else {
+        toast.error(error instanceof ApiError ? error.message : 'Failed to update reorder point')
+      }
+    }
+  }
+
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Edit reorder point — {row.product.name}</DialogTitle>
+      </DialogHeader>
+      <p className="text-muted-foreground -mt-2 text-sm">{row.warehouse.name}</p>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <FormField
+            control={form.control}
+            name="reorder_point"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Reorder point</FormLabel>
+                <FormControl>
+                  <Input type="number" min={0} {...field} value={field.value as number} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <DialogFooter>
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </Form>
     </DialogContent>
   )
 }
