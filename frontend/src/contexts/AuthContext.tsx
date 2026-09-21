@@ -1,9 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import { api } from '@/lib/api'
-import { clearToken, setToken as persistToken } from '@/lib/api'
+import { api, clearSession, getToken, setToken as persistToken, USER_KEY } from '@/lib/api'
 import type { LoginResponse, Role, User } from '@/types/api'
-
-const USER_KEY = 'flowstock_user'
 
 interface AuthContextValue {
   user: User | null
@@ -37,8 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function logout() {
     api.post('/logout').catch(() => undefined)
-    clearToken()
-    localStorage.removeItem(USER_KEY)
+    clearSession()
     setUser(null)
   }
 
@@ -47,8 +43,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return roles.some((role) => user.roles.includes(role))
   }
 
+  // A cached user with no token (e.g. left behind after a 401 elsewhere)
+  // must never count as authenticated — that's what caused the login page
+  // and the protected dashboard to bounce off each other in a reload loop.
+  const isAuthenticated = user !== null && getToken() !== null
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: user !== null, login, logout, hasRole }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, hasRole }}>
       {children}
     </AuthContext.Provider>
   )

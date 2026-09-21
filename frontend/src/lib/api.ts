@@ -3,6 +3,7 @@ import type { ApiErrorBody } from '@/types/api'
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8081/api/v1'
 
 const TOKEN_KEY = 'flowstock_token'
+export const USER_KEY = 'flowstock_user'
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
@@ -14,6 +15,12 @@ export function setToken(token: string): void {
 
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY)
+}
+
+/** Clears both the token and the cached user — the only correct way to end a session. */
+export function clearSession(): void {
+  clearToken()
+  localStorage.removeItem(USER_KEY)
 }
 
 export class ApiError extends Error {
@@ -66,7 +73,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 
   if (!response.ok) {
     if (response.status === 401) {
-      clearToken()
+      clearSession()
       window.location.assign('/login')
     }
     throw new ApiError(response.status, data as ApiErrorBody)
