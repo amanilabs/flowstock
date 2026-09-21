@@ -15,7 +15,7 @@ class AuthController extends Controller
 {
     public function login(LoginRequest $request): JsonResponse
     {
-        $user = User::where('email', $request->validated('email'))->first();
+        $user = User::with('tenant')->where('email', $request->validated('email'))->first();
 
         if (! $user || ! Hash::check($request->validated('password'), $user->password)) {
             $this->logLoginAttempt(null, $request->validated('email'), false);
@@ -47,6 +47,7 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'tenant_id' => $user->tenant_id,
+                'tenant_name' => $user->tenant->name,
                 'roles' => $user->getRoleNames(),
             ],
         ]);
