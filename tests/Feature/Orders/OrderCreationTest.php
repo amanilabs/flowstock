@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\Tenant;
 use App\Models\Warehouse;
@@ -92,4 +93,57 @@ it('rejects cross-tenant customer_id, warehouse_id, and product_id, and an empty
         'customer_id' => $customerA->id, 'warehouse_id' => $warehouseA->id,
         'items' => [],
     ])->assertUnprocessable()->assertJsonValidationErrors('items');
+});
+
+it('rejects a quantity that would overflow the subtotal column with a clean 422, not a 500', function () {
+    $tenant = Tenant::factory()->create();
+    $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+    $warehouse = Warehouse::factory()->create(['tenant_id' => $tenant->id]);
+    $product = Product::factory()->create(['tenant_id' => $tenant->id, 'selling_price' => 278.85]);
+
+    actingAsRole('Admin', $tenant);
+
+    $this->postJson('/api/v1/orders', [
+        'customer_id' => $customer->id,
+        'warehouse_id' => $warehouse->id,
+        'items' => [['product_id' => $product->id, 'quantity' => 999999]],
+    ])->assertUnprocessable()->assertJsonValidationErrors('items.0.quantity');
+
+    expect(Order::count())->toBe(0);
+});
+
+it('rejects an explicit unit_price that would overflow the subtotal column', function () {
+    $tenant = Tenant::factory()->create();
+    $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+    $warehouse = Warehouse::factory()->create(['tenant_id' => $tenant->id]);
+    $product = Product::factory()->create(['tenant_id' => $tenant->id]);
+
+    actingAsRole('Admin', $tenant);
+
+    $this->postJson('/api/v1/orders', [
+        'customer_id' => $customer->id,
+        'warehouse_id' => $warehouse->id,
+        'items' => [['product_id' => $product->id, 'quantity' => 10, 'unit_price' => 99999999.9999]],
+    ])->assertUnprocessable()->assertJsonValidationErrors('items.0.quantity');
+});
+
+it('rejects a multi-item order whose combined total overflows, even if each line is individually fine', function () {
+    $tenant = Tenant::factory()->create();
+    $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+    $warehouse = Warehouse::factory()->create(['tenant_id' => $tenant->id]);
+    $productA = Product::factory()->create(['tenant_id' => $tenant->id]);
+    $productB = Product::factory()->create(['tenant_id' => $tenant->id]);
+
+    actingAsRole('Admin', $tenant);
+
+    $this->postJson('/api/v1/orders', [
+        'customer_id' => $customer->id,
+        'warehouse_id' => $warehouse->id,
+        'items' => [
+            ['product_id' => $productA->id, 'quantity' => 500000, 'unit_price' => 150],
+            ['product_id' => $productB->id, 'quantity' => 500000, 'unit_price' => 150],
+        ],
+    ])->assertUnprocessable()->assertJsonValidationErrors('items');
+
+    expect(Order::count())->toBe(0);
 });
