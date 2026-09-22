@@ -53,11 +53,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Subscribe to this user's private channel for real-time low-stock
   // alerts once authenticated; tear the whole connection down on
   // logout/session cleanup so a stale socket never outlives the session.
+  //
+  // Keyed on user?.id (a stable primitive), not the whole user object:
+  // subscribing is a full disconnect + reconnect + a fresh
+  // /broadcasting/auth round trip, and each one reopens a real race window
+  // where an event published between "authenticated" and "subscription
+  // acknowledged" is silently missed (private channels don't replay). Keying
+  // on the object reference would tear down and reopen that window on every
+  // re-render that happens to produce a new-but-equal user object, for no
+  // reason — keying on the id means we only ever pay for it once per login.
+  const userId = user?.id
   useEffect(() => {
-    if (!isAuthenticated || !user) return
+    if (!isAuthenticated || !userId) return
 
     const echo = connectEcho()
-    const channel = echo.private(`App.Models.User.${user.id}`)
+    const channel = echo.private(`App.Models.User.${userId}`)
 
     channel.notification((notification: LowStockAlert) => {
       if (notification.type !== 'LowStockAlert') return
@@ -69,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       disconnectEcho()
     }
-  }, [isAuthenticated, user])
+  }, [isAuthenticated, userId])
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated, login, logout, hasRole }}>
