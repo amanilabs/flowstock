@@ -10,16 +10,21 @@ dashboard with live updates, not a CRUD toy.
 
 ## Screenshots
 
-<!--
-  TODO: replace with real screenshots/GIF once captured. Suggested set:
-  - Dashboard (order-volume chart, low-stock summary)
-  - Stock page mid-adjustment, with the live low-stock toast visible
-  - Order detail page showing the lifecycle action buttons
--->
+<img src="docs/screenshots/dashboard.webp" alt="Dashboard with live stats and a 14-day order-volume chart" width="800">
 
-| Dashboard | Stock & live alerts | Order lifecycle |
-|---|---|---|
-| _screenshot coming soon_ | _screenshot coming soon_ | _screenshot coming soon_ |
+*Dashboard — real seeded data for Acme Supply Co.: catalog/order/customer/warehouse counts and a 14-day order-volume chart.*
+
+<img src="docs/screenshots/stock-inventory.webp" alt="Stock page listing multiple products across two warehouses, one in a low-stock state" width="800">
+
+*Stock — cross-product, cross-warehouse inventory, grouped by product, with a naturally-occurring low-stock row alongside normal ones.*
+
+<img src="docs/screenshots/realtime-low-stock-alert.webp" alt="A live low-stock toast notification appearing over the Stock page after a real stock adjustment" width="800">
+
+*Real-time alert — a genuine stock adjustment through the UI crossed a reorder point; Reverb broadcast it over a private channel and this toast appeared with no page refresh.*
+
+<img src="docs/screenshots/order-detail.webp" alt="Order detail page showing line items, active stock reservations, and lifecycle action buttons" width="800">
+
+*Order detail — a `processing` order with active stock reservations per line item and its next valid lifecycle actions.*
 
 ## Highlights
 
@@ -218,7 +223,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR to
 ## Roadmap / known gaps
 
 - CI covers the backend only — no frontend build/typecheck/lint job yet.
-- No screenshots/demo GIF yet (see placeholders above).
+- No demo GIF yet — screenshots above are static.
 
 ## License
 
