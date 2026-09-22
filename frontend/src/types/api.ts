@@ -15,6 +15,16 @@ export interface LoginResponse {
   user: User
 }
 
+/** Broadcast payload of App\Notifications\LowStockNotification::toBroadcast(). */
+export interface LowStockAlert {
+  id: string
+  type: 'LowStockAlert'
+  product: { id: number; name: string; sku: string }
+  warehouse: { id: number; name: string }
+  available_quantity: number
+  reorder_point: number
+}
+
 export interface ProductCategory {
   id: number
   name: string

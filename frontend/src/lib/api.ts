@@ -1,6 +1,6 @@
 import type { ApiErrorBody } from '@/types/api'
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8081/api/v1'
+export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8081/api/v1'
 
 const TOKEN_KEY = 'flowstock_token'
 export const USER_KEY = 'flowstock_user'

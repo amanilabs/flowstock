@@ -1,6 +1,8 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import { api, clearSession, getToken, setToken as persistToken, USER_KEY } from '@/lib/api'
-import type { LoginResponse, Role, User } from '@/types/api'
+import { connectEcho, disconnectEcho } from '@/lib/echo'
+import type { LoginResponse, LowStockAlert, Role, User } from '@/types/api'
 
 interface AuthContextValue {
   user: User | null
@@ -47,6 +49,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // must never count as authenticated — that's what caused the login page
   // and the protected dashboard to bounce off each other in a reload loop.
   const isAuthenticated = user !== null && getToken() !== null
+
+  // Subscribe to this user's private channel for real-time low-stock
+  // alerts once authenticated; tear the whole connection down on
+  // logout/session cleanup so a stale socket never outlives the session.
+  useEffect(() => {
+    if (!isAuthenticated || !user) return
+
+    const echo = connectEcho()
+    const channel = echo.private(`App.Models.User.${user.id}`)
+
+    channel.notification((notification: LowStockAlert) => {
+      if (notification.type !== 'LowStockAlert') return
+      toast.warning(`Low stock: ${notification.product.name}`, {
+        description: `${notification.warehouse.name} — ${notification.available_quantity} left (reorder point ${notification.reorder_point})`,
+      })
+    })
+
+    return () => {
+      disconnectEcho()
+    }
+  }, [isAuthenticated, user])
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated, login, logout, hasRole }}>

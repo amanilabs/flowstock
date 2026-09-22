@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\StockController;
 use App\Http\Controllers\Api\WarehouseController;
 use App\Http\Middleware\EnsureUserHasTenant;
 use App\Http\Middleware\SetPermissionsTeamId;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -18,6 +20,13 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', EnsureUserHasTenant::class, SetPermissionsTeamId::class])
         ->group(function () {
             Route::post('logout', [AuthController::class, 'logout']);
+
+            // The framework auto-registers GET|POST broadcasting/auth on the
+            // 'web' (session) guard the moment routes/channels.php exists —
+            // useless for this token-based SPA. This is the same channel
+            // authorization (routes/channels.php), just reachable with the
+            // same Bearer-token auth stack as every other endpoint here.
+            Route::post('broadcasting/auth', fn (Request $request) => Broadcast::auth($request));
 
             Route::apiResource('product-categories', ProductCategoryController::class)
                 ->middlewareFor(['index', 'show'], 'can:view-categories')
