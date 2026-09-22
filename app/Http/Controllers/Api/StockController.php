@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ReservationStatus;
 use App\Enums\StockMovementType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AdjustStockRequest;
@@ -11,7 +12,9 @@ use App\Http\Resources\ProductStockResource;
 use App\Http\Resources\StockMovementResource;
 use App\Models\Product;
 use App\Models\ProductStock;
+use App\Models\Scopes\TenantScope;
 use App\Models\StockMovement;
+use App\Models\StockReservation;
 use App\Models\Warehouse;
 use App\Services\StockService;
 use Dedoc\Scramble\Attributes\QueryParameter;
@@ -51,6 +54,19 @@ class StockController extends Controller
             // leftover stock row 500s here (product relation resolves null).
             ->join('products', fn ($join) => $join->on('products.id', '=', 'product_stock.product_id')->whereNull('products.deleted_at'))
             ->select('product_stock.*')
+            // Correlated subquery instead of ProductStock::activeReservedQuantity()
+            // per row in InventoryResource — that was N extra `sum(quantity)`
+            // queries per page (one per row) on top of this one.
+            ->selectSub(
+                StockReservation::query()
+                    ->withoutGlobalScope(TenantScope::class)
+                    ->selectRaw('coalesce(sum(quantity), 0)')
+                    ->whereColumn('product_id', 'product_stock.product_id')
+                    ->whereColumn('warehouse_id', 'product_stock.warehouse_id')
+                    ->whereColumn('tenant_id', 'product_stock.tenant_id')
+                    ->where('status', ReservationStatus::Active),
+                'active_reserved_quantity'
+            )
             ->with(['product.category', 'warehouse'])
             ->when($request->filled('warehouse_id'), fn ($q) => $q->where('product_stock.warehouse_id', $request->integer('warehouse_id')))
             ->when($request->filled('product_id'), fn ($q) => $q->where('product_stock.product_id', $request->integer('product_id')))

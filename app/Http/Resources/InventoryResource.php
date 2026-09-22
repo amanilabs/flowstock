@@ -9,7 +9,12 @@ class InventoryResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $reserved = $this->activeReservedQuantity();
+        // The inventory listing eager-loads this as `active_reserved_quantity`
+        // (a correlated subquery) to avoid one activeReservedQuantity() query
+        // per row — fall back to the live per-row query for any other caller.
+        $reserved = $this->active_reserved_quantity !== null
+            ? (int) $this->active_reserved_quantity
+            : $this->activeReservedQuantity();
         $reorderPoint = $this->reorder_point;
 
         return [

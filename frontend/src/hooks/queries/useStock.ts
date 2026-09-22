@@ -52,7 +52,11 @@ export function useAdjustStock(productId: number) {
       queryClient.invalidateQueries({ queryKey: ['stock', productId] })
       queryClient.invalidateQueries({ queryKey: ['stock-movements', productId] })
       queryClient.invalidateQueries({ queryKey: ['inventory'] })
-      queryClient.invalidateQueries({ queryKey: ['products'] })
+      // Only total_stock on the products list is affected, and it's not shown
+      // anywhere on this page — mark it stale (refetches on next mount, since
+      // staleTime defaults to 0) instead of forcing an immediate parallel
+      // refetch of a list that likely isn't even mounted right now.
+      queryClient.invalidateQueries({ queryKey: ['products'], refetchType: 'none' })
     },
   })
 }
